@@ -8,13 +8,6 @@
   </head>
   <body>
     <div class="page">
-      <header class="hud">
-        <div class="hud__title">5x5 Grid Walk</div>
-        <div class="hud__hint">
-          矢印キー or 画面左下のD-pad でキャラクターを動かせます。
-        </div>
-      </header>
-
       <main class="stage">
         <div class="map" id="map" aria-label="map">
           <img
@@ -26,43 +19,46 @@
             <img src="../img/UI/character.png" alt="キャラクター" />
           </div>
         </div>
-      </main>
+        <div class="dpad" role="group" aria-label="移動用D-pad">
+          <div class="dpad__grid">
+            <span class="dpad__spacer" aria-hidden="true"></span>
+            <button
+              class="dpad__btn dpad__btn--up"
+              data-dir="up"
+              aria-label="上"
+            >
+              <img src="../img/UI/up.png" alt="上" />
+            </button>
+            <span class="dpad__spacer" aria-hidden="true"></span>
 
-      <div class="dpad" role="group" aria-label="移動用D-pad">
-        <div class="dpad__grid">
-          <span class="dpad__spacer" aria-hidden="true"></span>
-          <button class="dpad__btn dpad__btn--up" data-dir="up" aria-label="上">
-            <img src="../img/UI/up.png" alt="上" />
-          </button>
-          <span class="dpad__spacer" aria-hidden="true"></span>
+            <button
+              class="dpad__btn dpad__btn--left"
+              data-dir="left"
+              aria-label="左"
+            >
+              <img src="../img/UI/left.png" alt="左" />
+            </button>
+            <button
+              class="dpad__btn dpad__btn--down"
+              data-dir="down"
+              aria-label="下"
+            >
+              <img src="../img/UI/down.png" alt="下" />
+            </button>
+            <button
+              class="dpad__btn dpad__btn--right"
+              data-dir="right"
+              aria-label="右"
+            >
+              <img src="../img/UI/right.png" alt="右" />
+            </button>
 
-          <button
-            class="dpad__btn dpad__btn--left"
-            data-dir="left"
-            aria-label="左"
-          >
-            <img src="../img/UI/left.png" alt="左" />
-          </button>
-          <button
-            class="dpad__btn dpad__btn--down"
-            data-dir="down"
-            aria-label="下"
-          >
-            <img src="../img/UI/down.png" alt="下" />
-          </button>
-          <button
-            class="dpad__btn dpad__btn--right"
-            data-dir="right"
-            aria-label="右"
-          >
-            <img src="../img/UI/right.png" alt="右" />
-          </button>
-
-          <span class="dpad__spacer" aria-hidden="true"></span>
-          <span class="dpad__spacer" aria-hidden="true"></span>
-          <span class="dpad__spacer" aria-hidden="true"></span>
+            <span class="dpad__spacer" aria-hidden="true"></span>
+            <span class="dpad__spacer" aria-hidden="true"></span>
+            <span class="dpad__spacer" aria-hidden="true"></span>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
 
     <script type="module" src="./main.js"></script>

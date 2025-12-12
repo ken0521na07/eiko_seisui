@@ -1,5 +1,5 @@
 :root {
-  --map-size: min(70vw, 520px);
+  --map-size: min(38vw, 60vh, 420px);
   --panel: #0d1224;
   --panel-strong: #121a2f;
   --accent: #4fd1c5;
@@ -15,6 +15,8 @@
 body {
   margin: 0;
   min-height: 100vh;
+  min-width: 100vw;
+  overflow: hidden;
   font-family: "Poppins", "Helvetica Neue", sans-serif;
   color: var(--text);
   background: radial-gradient(
@@ -27,12 +29,11 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 32px;
 }
 
 .page {
-  width: 100%;
-  max-width: 960px;
+  width: 100vw;
+  max-width: 100vw;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -61,16 +62,25 @@ body {
 }
 
 .stage {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
+  width: 100vw;
+  height: 100vh;
+  min-height: unset;
+  min-width: unset;
+  display: grid;
+  grid-template-columns: 30vw 40vw 30vw;
+  grid-template-rows: 1fr;
+  overflow: hidden;
 }
 
 .map {
   width: var(--map-size);
   height: var(--map-size);
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  justify-self: center;
   position: relative;
+  z-index: 1;
   overflow: hidden;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -91,8 +101,9 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  width: var(--tile-size, 64px);
-  height: var(--tile-size, 64px);
+  height: var(--tile-size, 64px); /* 1マス分の高さ */
+  aspect-ratio: 270 / 388; /* キャラクター画像のアスペクト比 */
+  width: auto;
   transform: translate(0, 0);
   transition: transform 120ms ease-out;
   display: grid;
@@ -104,32 +115,42 @@ body {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  display: block;
 }
 
 .dpad {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
+  position: relative;
+  grid-column: 3;
+  grid-row: 1;
+  align-self: end;
+  justify-self: end;
+  margin: 0 0 32px 0;
+  z-index: 10;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(0, 0, 0, 0.06);
   backdrop-filter: blur(6px);
   border-radius: 14px;
-  padding: 12px;
+  padding: 2vw;
   box-shadow: var(--shadow);
+  z-index: 2;
+  max-width: 28vw;
+  width: 100%;
 }
 
 .dpad__grid {
   display: grid;
-  grid-template-columns: repeat(3, 64px);
-  grid-template-rows: repeat(3, 64px);
-  gap: 8px;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 0.7vw;
   align-items: center;
   justify-items: center;
 }
 
 .dpad__btn {
-  width: 64px;
-  height: 64px;
+  width: 7vw;
+  height: 7vw;
+  max-width: 56px;
+  max-height: 56px;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
   background: #ffffff;
@@ -156,50 +177,17 @@ body {
 }
 
 .dpad__btn img {
-  width: 36px;
-  height: 36px;
+  width: 3vw;
+  height: 3vw;
+  max-width: 28px;
+  max-height: 28px;
   object-fit: contain;
   pointer-events: none;
 }
 
 .dpad__spacer {
-  width: 64px;
-  height: 64px;
-}
-
-@media (max-width: 900px) {
-  :root {
-    --map-size: min(80vw, 440px);
-  }
-}
-
-@media (max-width: 620px) {
-  :root {
-    --map-size: min(92vw, 360px);
-  }
-
-  body {
-    padding: 18px;
-  }
-
-  .dpad {
-    right: 16px;
-    bottom: 16px;
-  }
-
-  .dpad__grid {
-    grid-template-columns: repeat(3, 56px);
-    grid-template-rows: repeat(3, 56px);
-  }
-
-  .dpad__btn,
-  .dpad__spacer {
-    width: 56px;
-    height: 56px;
-  }
-
-  .dpad__btn img {
-    width: 30px;
-    height: 30px;
-  }
+  width: 7vw;
+  height: 7vw;
+  max-width: 56px;
+  max-height: 56px;
 }
