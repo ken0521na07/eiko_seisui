@@ -1,12 +1,12 @@
 @charset "UTF-8";
 :root {
   --map-size: min(38vw, 60vh, 420px);
-  --panel: #0d1224;
-  --panel-strong: #121a2f;
+  --panel: #f7f7fa;
+  --panel-strong: #eaeaf0;
   --accent: #4fd1c5;
-  --text: #e6ecff;
-  --muted: #8ea0c6;
-  --shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  --text: #222;
+  --muted: #b0b0b0;
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
 }
 
 * {
@@ -20,10 +20,43 @@ body {
   overflow: hidden;
   font-family: "Poppins", "Helvetica Neue", sans-serif;
   color: var(--text);
-  background: radial-gradient(circle at 20% 20%, rgba(79, 209, 197, 0.08), transparent 35%), radial-gradient(circle at 80% 0%, rgba(93, 105, 255, 0.08), transparent 35%), #070b16;
+  background: #fff;
   display: flex;
   justify-content: center;
   align-items: center;
+  /* minimap */
+}
+body .minimap {
+  position: fixed;
+  top: 18px;
+  left: 18px;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  padding: 10px 14px 10px 14px;
+  display: grid;
+  grid-template-columns: repeat(5, 18px);
+  grid-template-rows: repeat(5, 18px);
+  gap: 4px;
+}
+body .minimap__cell {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  opacity: 0.05;
+  transition: background 0.2s, opacity 0.2s, border 0.2s;
+}
+body .minimap__cell--visited {
+  background: #4fd1c5;
+  opacity: 0.7;
+}
+body .minimap__cell--current {
+  background: #fffbe0;
+  border: 2.5px solid #f7c873;
+  opacity: 1;
 }
 
 .page {
