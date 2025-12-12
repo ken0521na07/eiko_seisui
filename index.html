@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Grid Move Demo</title>
-    <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="src/style.css" />
   </head>
   <body>
     <div class="minimap" id="minimap"></div>
@@ -13,12 +13,12 @@
         <div class="map" id="map" aria-label="map">
           <img
             class="map__background"
-            src="../img/UI/background_0.png"
+            src="/img/UI/background_0.png"
             alt="背景"
           />
 
           <div class="character" id="character">
-            <img src="../img/UI/character.png" alt="キャラクター" />
+            <img src="/img/UI/character.png" alt="キャラクター" />
           </div>
         </div>
         <div class="dpad" role="group" aria-label="移動用D-pad">
@@ -29,7 +29,7 @@
               data-dir="up"
               aria-label="上"
             >
-              <img src="../img/UI/up.png" alt="上" />
+              <img src="/img/UI/up.png" alt="上" />
             </button>
             <span class="dpad__spacer" aria-hidden="true"></span>
 
@@ -38,21 +38,21 @@
               data-dir="left"
               aria-label="左"
             >
-              <img src="../img/UI/left.png" alt="左" />
+              <img src="/img/UI/left.png" alt="左" />
             </button>
             <button
               class="dpad__btn dpad__btn--down"
               data-dir="down"
               aria-label="下"
             >
-              <img src="../img/UI/down.png" alt="下" />
+              <img src="/img/UI/down.png" alt="下" />
             </button>
             <button
               class="dpad__btn dpad__btn--right"
               data-dir="right"
               aria-label="右"
             >
-              <img src="../img/UI/right.png" alt="右" />
+              <img src="/img/UI/right.png" alt="右" />
             </button>
 
             <span class="dpad__spacer" aria-hidden="true"></span>
@@ -63,7 +63,7 @@
       </main>
     </div>
 
-    <script type="module" src="./main.js"></script>
+    <script type="module" src="src/main.js"></script>
     <!-- モーダル -->
     <div id="modal" class="modal" style="display: none">
       <div class="modal__content">
