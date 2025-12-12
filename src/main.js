@@ -88,7 +88,7 @@ function renderStoneboards() {
   const boards = stoneboards[roomKey] || [];
   boards.forEach(({ x, y, img: imgName }) => {
     const img = document.createElement("img");
-    img.src = "../img/UI/stoneboard.png";
+    img.src = "img/UI/stoneboard.png";
     img.alt = "石板";
     img.className = "stoneboard";
     img.style.position = "absolute";
@@ -134,7 +134,7 @@ function renderStoneboards() {
     // チェック画像（未調査なら表示）
     if (!isCheckedStoneboard(roomKey, x, y)) {
       const checkImg = document.createElement("img");
-      checkImg.src = "../img/UI/check.png";
+      checkImg.src = "img/UI/check.png";
       checkImg.alt = "未調査";
       checkImg.className = "stoneboard-check";
       checkImg.style.position = "absolute";
@@ -155,7 +155,7 @@ function renderStoneboards() {
     img.addEventListener("click", () => {
       // キャラクターが同じマスにいるときのみ調べられる
       if (position.x === x && position.y === y) {
-        showModal(`../img/nazo/${imgName}`, "壁に何か書かれている");
+        showModal(`img/nazo/${imgName}`, "壁に何か書かれている");
         setCheckedStoneboard(roomKey, x, y);
         renderStoneboards(); // 状態更新
       }
