@@ -250,9 +250,9 @@ function render() {
   if (right) key += "r";
   if (left) key += "l";
   if (key) {
-    bgImg.src = `../img/map/map_${key}.webp`;
+    bgImg.src = `img/map/map_${key}.webp`;
   } else {
-    bgImg.src = "../img/UI/background_0.webp";
+    bgImg.src = "img/UI/background_0.webp";
   }
 
   // キャラクターの足元がマスの下端に揃うように配置。ただしmapからはみ出さないように制限
