@@ -1,3 +1,10 @@
+// 石板画像
+.stoneboard {
+  pointer-events: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.18));
+  user-select: none;
+}
 :root {
   --map-size: min(38vw, 60vh, 420px);
   --panel: #f7f7fa;

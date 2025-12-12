@@ -6,9 +6,9 @@ const PLAYABLE_PX = MAP_PX - SAFE_MARGIN * 2; // 300
 
 // キャラクターの現在位置（マス座標）
 const position = { x: 2, y: 2 };
-// 現在の部屋座標（5x5の部屋グリッド、左下が(0,4)）
+// 現在の部屋座標（5x5の部屋グリッド、左下が(0,0)）
 const roomGridSize = 5;
-const room = { x: 0, y: 4 };
+const room = { x: 0, y: 0 };
 // 通過した部屋を記録
 const visitedRooms = Array.from({ length: roomGridSize }, () =>
   Array(roomGridSize).fill(false)
@@ -19,9 +19,50 @@ const mapEl = document.getElementById("map");
 const characterEl = document.getElementById("character");
 const buttons = document.querySelectorAll(".dpad__btn");
 
+// 石板配置データ: { [roomKey]: [{ x, y }] }
+const stoneboards = {
+  // 部屋(1,0)の(2,0)に石板
+  "1,0": [{ x: 2, y: 0 }],
+};
+
+// 石板img要素を管理
+let stoneboardElements = [];
+
+function renderStoneboards() {
+  // 既存の石板imgを削除
+  stoneboardElements.forEach((el) => el.remove());
+  stoneboardElements = [];
+  // 現在の部屋に石板があれば描画
+  const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
+  const roomKey = `${room.x},${room.y}`;
+  const boards = stoneboards[roomKey] || [];
+  boards.forEach(({ x, y }) => {
+    const img = document.createElement("img");
+    img.src = "../img/UI/stoneboard.png";
+    img.alt = "石板";
+    img.className = "stoneboard";
+    img.style.position = "absolute";
+    img.style.left = `${
+      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
+    }px`;
+    const boardWidth = tileSize;
+    const boardHeight = tileSize * (117 / 501);
+    img.style.width = `${boardWidth}px`;
+    img.style.height = `${boardHeight}px`;
+    img.style.top = `${
+      SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+      (gridSize - 1 - y + 1) * tileSize -
+      boardHeight
+    }px`;
+    img.style.zIndex = 5;
+    mapEl.appendChild(img);
+    stoneboardElements.push(img);
+  });
+}
+
 const directions = {
-  up: [0, -1],
-  down: [0, 1],
+  up: [0, 1],
+  down: [0, -1],
   left: [-1, 0],
   right: [1, 0],
 };
@@ -44,7 +85,8 @@ function render() {
   function renderMinimap() {
     const minimap = document.getElementById("minimap");
     minimap.innerHTML = "";
-    for (let y = 0; y < roomGridSize; y++) {
+    // y=0が下、yが大きいほど上になるよう逆順で描画
+    for (let y = roomGridSize - 1; y >= 0; y--) {
       for (let x = 0; x < roomGridSize; x++) {
         const cell = document.createElement("div");
         cell.className = "minimap__cell";
@@ -58,9 +100,10 @@ function render() {
   const tileSize = setTileSize();
   // 部屋の背景画像切り替え
   const bgImg = mapEl.querySelector(".map__background");
+  // 石板の描画は部屋移動時のみ行う
   // どの方向に隣接部屋があるか判定
-  const up = room.y > 0;
-  const down = room.y < roomGridSize - 1;
+  const up = room.y < roomGridSize - 1;
+  const down = room.y > 0;
   const left = room.x > 0;
   const right = room.x < roomGridSize - 1;
   let key = "";
@@ -84,7 +127,7 @@ function render() {
   // Y軸上向き: 下端がy=0
   let y =
     SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-    (position.y + 1) * tileSize -
+    (gridSize - 1 - position.y + 1) * tileSize -
     characterEl.offsetHeight;
   characterEl.style.transform = `translate(${x}px, ${y}px)`;
 }
@@ -107,7 +150,7 @@ function move(dir) {
   function enableCharacterTransition() {
     characterEl.style.transition = "";
   }
-  // Y軸上向き: 上端はy=4, 下端はy=0
+  // Y軸: 上端はy=gridSize-1, 下端はy=0
   if (nextY > 4 && position.x === 2 && dy === 1 && room.y < roomGridSize - 1) {
     disableCharacterTransition();
     // 上端中央
@@ -116,6 +159,7 @@ function move(dir) {
     nextX = 2;
     movedRoom = true;
     visitedRooms[room.y][room.x] = true;
+    renderStoneboards();
   } else if (nextY < 0 && position.x === 2 && dy === -1 && room.y > 0) {
     disableCharacterTransition();
     // 下端中央
@@ -124,6 +168,18 @@ function move(dir) {
     nextX = 2;
     movedRoom = true;
     visitedRooms[room.y][room.x] = true;
+    renderStoneboards();
+  } else if (nextY < 0 && position.x === 2 && dy === 1 && room.y > 0) {
+    // 下端中央から下へは移動不可
+    return;
+  } else if (
+    nextY > 4 &&
+    position.x === 2 &&
+    dy === -1 &&
+    room.y < roomGridSize - 1
+  ) {
+    // 上端中央から上へは移動不可
+    return;
   } else if (nextX < 0 && position.y === 2 && dx === -1 && room.x > 0) {
     disableCharacterTransition();
     // 左端中央
@@ -132,6 +188,7 @@ function move(dir) {
     nextY = 2;
     movedRoom = true;
     visitedRooms[room.y][room.x] = true;
+    renderStoneboards();
   } else if (
     nextX > 4 &&
     position.y === 2 &&
@@ -145,6 +202,7 @@ function move(dir) {
     nextY = 2;
     movedRoom = true;
     visitedRooms[room.y][room.x] = true;
+    renderStoneboards();
   }
 
   // 通常の範囲内移動
@@ -184,3 +242,4 @@ buttons.forEach((btn) => {
 window.addEventListener("resize", render);
 
 render();
+renderStoneboards();
