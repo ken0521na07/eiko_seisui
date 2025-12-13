@@ -232,9 +232,12 @@ function renderStands() {
   });
 }
 
-// 宝箱配置データ: { [roomKey]: [{ x, y }] }
+// 宝箱配置データ: { [roomKey]: [{ x, y, img, answer }] }
 const boxes = {
-  "2,4": [{ x: 2, y: 4 }],
+  "2,4": [{ x: 2, y: 4, img: "img/nazo/nazo_1-1-3.png", answer: "cbtf" }],
+  "0,2": [{ x: 0, y: 2, img: "img/nazo/nazo_1-1-11.png", answer: "cgsj" }],
+  "4,2": [{ x: 4, y: 2, img: "img/nazo/nazo_1-1-15.png", answer: "cjkf" }],
+  "2,0": [{ x: 2, y: 0, img: "img/nazo/nazo_1-1-23.png", answer: "cjlm" }],
 };
 
 function renderBoxes() {
@@ -266,7 +269,7 @@ function renderBoxes() {
       const dx = Math.abs(position.x - x);
       const dy = Math.abs(position.y - y);
       if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-        showBoxModal();
+        showBoxModal(roomKey, x, y);
       }
     });
     mapEl.appendChild(img);
@@ -318,6 +321,244 @@ window.addEventListener("DOMContentLoaded", () => {
     resetBtn.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
     resetBtn.addEventListener("click", () => window.reset());
     document.body.appendChild(resetBtn);
+  }
+});
+
+// --- アイテム画面機能 ---
+
+// アイテムデータ
+const itemList = [
+  {
+    id: "coin",
+    name: "コイン",
+    img: "img/item/coin.png",
+    desc: "ただのコインだ",
+    unlocked: false, // 初期は未解放
+  },
+  {
+    id: "tsubo",
+    name: "水瓶",
+    img: "img/item/tsubo.png",
+    desc: "水が入った入れ物だ",
+    unlocked: false, // 初期は未解放
+  },
+  {
+    id: "teppan",
+    name: "錆びた鉄板",
+    img: "img/item/teppan.png",
+    desc: "錆びた円形の鉄板だ",
+    unlocked: false,
+  },
+  {
+    id: "yasuri",
+    name: "やすり",
+    img: "img/item/yasuri.png",
+    desc: "ただのやすりだ。錆を落とすのに使える。",
+    unlocked: false,
+  },
+  {
+    id: "chokinbako",
+    name: "貯金箱",
+    img: "img/item/chokinbako.png",
+    desc: "貯金箱だ。中に何か入っているようだ。",
+    unlocked: false,
+  },
+  // ここに新しいアイテムを追加可能
+];
+
+// アイテム解放関数
+function unlockItem(id) {
+  const item = itemList.find((i) => i.id === id);
+  if (item) item.unlocked = true;
+}
+
+// アイテム画面モーダル表示関数
+function showItemModal() {
+  // 既存モーダルがあれば削除
+  let old = document.getElementById("item-modal");
+  if (old) old.remove();
+
+  // モーダル本体
+  const modal = document.createElement("div");
+  modal.id = "item-modal";
+  modal.style.position = "fixed";
+  modal.style.top = "0";
+  modal.style.left = "0";
+  modal.style.width = "100vw";
+  modal.style.height = "100vh";
+  modal.style.background = "rgba(0,0,0,0.4)";
+  modal.style.display = "flex";
+  modal.style.alignItems = "center";
+  modal.style.justifyContent = "center";
+  modal.style.zIndex = 3000;
+
+  // パネル
+  const panel = document.createElement("div");
+  panel.style.background = "#444";
+  panel.style.borderRadius = "16px";
+  panel.style.padding = "32px 40px";
+  panel.style.display = "flex";
+  panel.style.flexDirection = "row";
+  panel.style.gap = "40px";
+  panel.style.minWidth = "600px";
+  panel.style.maxWidth = "90vw";
+  panel.style.maxHeight = "90vh";
+  panel.style.boxSizing = "border-box";
+  panel.style.position = "relative";
+
+  // 右: アイテム説明
+  const descWrap = document.createElement("div");
+  descWrap.style.display = "flex";
+  descWrap.style.flexDirection = "column";
+  descWrap.style.alignItems = "center";
+  descWrap.style.justifyContent = "flex-start";
+  descWrap.style.minWidth = "220px";
+  descWrap.style.maxWidth = "320px";
+  descWrap.style.background = "#333";
+  descWrap.style.borderRadius = "10px";
+  descWrap.style.padding = "24px 18px";
+  descWrap.style.boxSizing = "border-box";
+
+  // アイテム名
+  const descTitle = document.createElement("div");
+  descTitle.style.fontSize = "1.3rem";
+  descTitle.style.fontWeight = "bold";
+  descTitle.style.color = "#FFD600";
+  descTitle.style.marginBottom = "12px";
+  descWrap.appendChild(descTitle);
+  // アイテム画像
+  const descImg = document.createElement("img");
+  descImg.style.width = "64px";
+  descImg.style.height = "64px";
+  descImg.style.marginBottom = "16px";
+  descWrap.appendChild(descImg);
+  // アイテム説明
+  const descText = document.createElement("div");
+  descText.style.color = "#fff";
+  descText.style.fontSize = "1.1rem";
+  descText.style.textAlign = "center";
+  descText.style.width = "180px";
+  descText.style.wordBreak = "break-word";
+  descWrap.appendChild(descText);
+
+  // 左: アイテムグリッド
+  const grid = document.createElement("div");
+  grid.style.display = "grid";
+  grid.style.gridTemplateColumns = "repeat(3, 72px)";
+  grid.style.gridTemplateRows = "repeat(4, 72px)";
+  grid.style.gap = "18px";
+  grid.style.background = "#222";
+  grid.style.borderRadius = "10px";
+  grid.style.padding = "18px";
+  grid.style.minWidth = "270px";
+  grid.style.alignSelf = "flex-start";
+
+  // アイテム画像を並べる
+  let selectedIdx = 0;
+  // unlockedなアイテムのみ表示
+  const unlockedItems = itemList.filter((item) => item.unlocked);
+  unlockedItems.forEach((item, idx) => {
+    const cell = document.createElement("div");
+    cell.style.width = "72px";
+    cell.style.height = "72px";
+    cell.style.display = "flex";
+    cell.style.alignItems = "center";
+    cell.style.justifyContent = "center";
+    cell.style.background = "#fff";
+    cell.style.border =
+      selectedIdx === idx ? "3px solid #FFD600" : "2px solid #888";
+    cell.style.borderRadius = "8px";
+    cell.style.cursor = "pointer";
+    cell.style.transition = "border 0.2s";
+    // アイテム画像
+    const img = document.createElement("img");
+    img.src = item.img;
+    img.alt = item.name;
+    img.style.width = "48px";
+    img.style.height = "48px";
+    img.style.opacity = "1";
+    cell.appendChild(img);
+    // 選択時の処理
+    cell.addEventListener("click", () => {
+      // 全セルのborderをリセット
+      Array.from(grid.children).forEach((c, i) => {
+        c.style.border = i === idx ? "3px solid #FFD600" : "2px solid #888";
+      });
+      // 説明を更新
+      descTitle.textContent = item.name;
+      descImg.src = item.img;
+      descImg.alt = item.name;
+      descText.textContent = item.desc;
+    });
+    grid.appendChild(cell);
+  });
+
+  // 最初の説明はunlockedな最初のアイテム、なければ空欄
+  if (unlockedItems.length > 0) {
+    descTitle.textContent = unlockedItems[0].name;
+    descImg.src = unlockedItems[0].img;
+    descImg.alt = unlockedItems[0].name;
+    descText.textContent = unlockedItems[0].desc;
+  } else {
+    descTitle.textContent = "";
+    descImg.src = "";
+    descImg.alt = "";
+    descText.textContent = "";
+  }
+
+  // パネルに左右追加
+  panel.appendChild(grid);
+  // unlockedなアイテムがある場合のみ説明欄を表示
+  if (unlockedItems.length > 0) {
+    panel.appendChild(descWrap);
+  }
+
+  // バツボタン
+  const closeBtn = document.createElement("button");
+  closeBtn.textContent = "×";
+  closeBtn.style.position = "absolute";
+  closeBtn.style.top = "16px";
+  closeBtn.style.right = "16px";
+  closeBtn.style.width = "40px";
+  closeBtn.style.height = "40px";
+  closeBtn.style.fontSize = "1.7rem";
+  closeBtn.style.background = "#fff";
+  closeBtn.style.border = "2px solid #888";
+  closeBtn.style.borderRadius = "50%";
+  closeBtn.style.cursor = "pointer";
+  closeBtn.style.zIndex = 10;
+  closeBtn.addEventListener("click", () => modal.remove());
+  panel.appendChild(closeBtn);
+
+  // モーダル外クリックで閉じる
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) modal.remove();
+  });
+
+  modal.appendChild(panel);
+  document.body.appendChild(modal);
+}
+
+// 画面右上に「アイテム」ボタンを追加
+window.addEventListener("DOMContentLoaded", () => {
+  let itemBtn = document.getElementById("item-btn");
+  if (!itemBtn) {
+    itemBtn = document.createElement("button");
+    itemBtn.id = "item-btn";
+    itemBtn.textContent = "アイテム";
+    itemBtn.style.position = "fixed";
+    itemBtn.style.top = "18px";
+    itemBtn.style.right = "24px";
+    itemBtn.style.zIndex = 1200;
+    itemBtn.style.padding = "8px 24px";
+    itemBtn.style.fontSize = "1.1rem";
+    itemBtn.style.background = "#fff";
+    itemBtn.style.border = "1px solid #888";
+    itemBtn.style.borderRadius = "8px";
+    itemBtn.style.cursor = "pointer";
+    itemBtn.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
+    itemBtn.addEventListener("click", showItemModal);
+    document.body.appendChild(itemBtn);
   }
 });
 
@@ -397,10 +638,17 @@ function render() {
 }
 
 // 宝箱用カスタムモーダル表示関数
-function showBoxModal() {
+function showBoxModal(
+  roomKey = `${room.x},${room.y}`,
+  boxX = position.x,
+  boxY = position.y
+) {
   // 既存モーダルがあれば削除
   let old = document.getElementById("box-modal");
   if (old) old.remove();
+  // 対象宝箱データ取得
+  const boxList = boxes[roomKey] || [];
+  const box = boxList.find((b) => b.x === boxX && b.y === boxY) || boxList[0];
   // モーダル本体
   const modal = document.createElement("div");
   modal.id = "box-modal";
@@ -431,7 +679,7 @@ function showBoxModal() {
 
   // 問題画像
   const img = document.createElement("img");
-  img.src = "img/nazo/nazo_1-1-3.png";
+  img.src = box?.img || "img/nazo/nazo_1-1-3.png";
   img.alt = "謎画像";
   img.style.maxWidth = "min(60vw, 600px)";
   img.style.maxHeight = "40vh";
@@ -568,12 +816,44 @@ function showBoxModal() {
     // 入力された文字列（画像altの連結）を取得
     let answer = "";
     inputWrap.querySelectorAll("img").forEach((img) => (answer += img.alt));
-    if (answer === "cbtf") {
+    // 現在の部屋・宝箱の正解を取得
+    const correct = box?.answer || "";
+    // 正解時のアイテム解放処理
+    if (answer === correct && roomKey === "2,4") {
+      unlockItem("tsubo");
+      showModal(
+        "img/item/tsubo.png",
+        "宝箱が開いた！\n中から「水瓶」を手に入れた！"
+      );
+      modal.remove();
+    } else if (answer === correct && roomKey === "0,2") {
+      unlockItem("teppan");
+      showModal(
+        "img/item/teppan.png",
+        "宝箱が開いた！\n中から「錆びた鉄板」を手に入れた！"
+      );
+      modal.remove();
+    } else if (answer === correct && roomKey === "4,2") {
+      unlockItem("yasuri");
+      showModal(
+        "img/item/yasuri.png",
+        "宝箱が開いた！\n中から「やすり」を手に入れた！"
+      );
+      modal.remove();
+    } else if (answer === correct && roomKey === "2,0") {
+      unlockItem("chokinbako");
+      showModal(
+        "img/item/chokinbako.png",
+        "宝箱が開いた！\n中から「貯金箱」を手に入れた！"
+      );
+      modal.remove();
+    } else if (answer === correct) {
       alert("正解！");
-      // モーダルを閉じる
       modal.remove();
     } else {
-      alert(`入力値: ${answer}`);
+      alert("どうやら答えが違うようだ。");
+      // 入力欄を空にする
+      while (inputWrap.firstChild) inputWrap.removeChild(inputWrap.firstChild);
     }
   });
 
