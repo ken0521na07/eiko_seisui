@@ -165,6 +165,95 @@ function renderStoneboards() {
   });
 }
 
+// 台座配置データ: { [roomKey]: [{ x, y }] }
+const stands = {
+  "0,0": [{ x: 0, y: 0 }],
+  "2,0": [{ x: 0, y: 0 }],
+  "4,0": [{ x: 0, y: 0 }],
+  "1,1": [{ x: 0, y: 0 }],
+  "3,1": [{ x: 0, y: 0 }],
+  "0,2": [{ x: 0, y: 0 }],
+  "2,2": [{ x: 0, y: 0 }],
+  "4,2": [{ x: 0, y: 0 }],
+  "1,3": [{ x: 2, y: 2 }],
+  "3,3": [{ x: 2, y: 2 }],
+  "0,4": [{ x: 0, y: 0 }],
+  "2,4": [{ x: 0, y: 0 }],
+  "4,4": [{ x: 0, y: 0 }],
+};
+
+function renderStands() {
+  // 既存の台座imgを削除
+  const oldStands = document.querySelectorAll(".stand");
+  oldStands.forEach((el) => el.remove());
+  // 現在の部屋に台座があれば描画
+  const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
+  const roomKey = `${room.x},${room.y}`;
+  const list = stands[roomKey] || [];
+  list.forEach(({ x, y }) => {
+    const img = document.createElement("img");
+    img.src = "img/UI/stand.png";
+    img.alt = "台座";
+    img.className = "stand";
+    img.style.position = "absolute";
+    img.style.left = `${
+      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
+    }px`;
+    img.style.top = `${
+      SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+      (gridSize - 1 - y) * tileSize
+    }px`;
+    img.style.height = `${tileSize * 0.9}px`;
+    img.style.width = "auto";
+    // 左右中央揃え
+    img.style.left = `${
+      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) +
+      x * tileSize +
+      (tileSize - (tileSize * 0.9 * img.naturalWidth) / img.naturalHeight) / 2
+    }px`;
+    // naturalWidth/Heightがまだ取得できない場合はload後に再調整
+    img.onload = function () {
+      img.style.left = `${
+        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) +
+        x * tileSize +
+        (tileSize - img.offsetWidth) / 2
+      }px`;
+    };
+    img.style.zIndex = 7;
+    img.addEventListener("click", () => {
+      // 隣接マスにいる場合のみ反応
+      const dx = Math.abs(position.x - x);
+      const dy = Math.abs(position.y - y);
+      if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+        showModal("img/UI/stand.png", "台座を調べた");
+      }
+    });
+    mapEl.appendChild(img);
+  });
+}
+
+// 進入不可マスデータ: { [roomKey]: [{ x, y, type }] }
+const blockedTiles = {
+  "0,0": [{ x: 0, y: 0 }],
+
+  // 他の部屋も同様に追加可能
+};
+
+function isBlockedTile(roomKey, x, y) {
+  const list = blockedTiles[roomKey] || [];
+  return list.some((tile) => tile.x === x && tile.y === y);
+}
+
+// 台座配置時にblockedTilesへ自動追加（全てのstandsデータをblockedTilesに反映）
+Object.keys(stands).forEach((roomKey) => {
+  if (!blockedTiles[roomKey]) blockedTiles[roomKey] = [];
+  stands[roomKey].forEach(({ x, y }) => {
+    if (!blockedTiles[roomKey].some((tile) => tile.x === x && tile.y === y)) {
+      blockedTiles[roomKey].push({ x, y, type: "stand" });
+    }
+  });
+});
+
 // --- 石板調査状態リセット用 ---
 function reset() {
   localStorage.removeItem("checkedStoneboards");
@@ -238,7 +327,9 @@ function render() {
   const tileSize = setTileSize();
   // 部屋の背景画像切り替え
   const bgImg = mapEl.querySelector(".map__background");
-  // 石板の描画は部屋移動時のみ行う
+  // 石板・台座の描画は部屋移動時やリサイズ時のみ行う
+  // renderStoneboards();
+  // renderStands();
   // どの方向に隣接部屋があるか判定
   const up = room.y < roomGridSize - 1;
   const down = room.y > 0;
@@ -298,6 +389,7 @@ function move(dir) {
     movedRoom = true;
     visitedRooms[room.y][room.x] = true;
     renderStoneboards();
+    renderStands();
   } else if (nextY < 0 && position.x === 2 && dy === -1 && room.y > 0) {
     disableCharacterTransition();
     // 下端中央
@@ -307,17 +399,7 @@ function move(dir) {
     movedRoom = true;
     visitedRooms[room.y][room.x] = true;
     renderStoneboards();
-  } else if (nextY < 0 && position.x === 2 && dy === 1 && room.y > 0) {
-    // 下端中央から下へは移動不可
-    return;
-  } else if (
-    nextY > 4 &&
-    position.x === 2 &&
-    dy === -1 &&
-    room.y < roomGridSize - 1
-  ) {
-    // 上端中央から上へは移動不可
-    return;
+    renderStands();
   } else if (nextX < 0 && position.y === 2 && dx === -1 && room.x > 0) {
     disableCharacterTransition();
     // 左端中央
@@ -327,6 +409,7 @@ function move(dir) {
     movedRoom = true;
     visitedRooms[room.y][room.x] = true;
     renderStoneboards();
+    renderStands();
   } else if (
     nextX > 4 &&
     position.y === 2 &&
@@ -341,12 +424,27 @@ function move(dir) {
     movedRoom = true;
     visitedRooms[room.y][room.x] = true;
     renderStoneboards();
+    renderStands();
+  } else if (nextY < 0 && position.x === 2 && dy === 1 && room.y > 0) {
+    // 下端中央から下へは移動不可
+    return;
+  } else if (
+    nextY > 4 &&
+    position.x === 2 &&
+    dy === -1 &&
+    room.y < roomGridSize - 1
+  ) {
+    // 上端中央から上へは移動不可
+    return;
   }
 
   // 通常の範囲内移動
   if (!movedRoom) {
     nextX = clamp(nextX, 0, gridSize - 1);
     nextY = clamp(nextY, 0, gridSize - 1);
+    // 進入不可マスなら移動しない
+    const roomKey = `${room.x},${room.y}`;
+    if (isBlockedTile(roomKey, nextX, nextY)) return;
     if (nextX === position.x && nextY === position.y) return;
   }
   position.x = nextX;
@@ -377,7 +475,12 @@ buttons.forEach((btn) => {
   btn.addEventListener("click", () => move(btn.dataset.dir));
 });
 
-window.addEventListener("resize", render);
+window.addEventListener("resize", () => {
+  render();
+  renderStoneboards();
+  renderStands();
+});
 
 render();
 renderStoneboards();
+renderStands();
