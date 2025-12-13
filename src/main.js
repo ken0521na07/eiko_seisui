@@ -30,7 +30,7 @@ const PLAYABLE_PX = MAP_PX - SAFE_MARGIN * 2; // 300
 const position = { x: 2, y: 2 };
 // 現在の部屋座標（5x5の部屋グリッド、左下が(0,0)）
 const roomGridSize = 5;
-const room = { x: 0, y: 0 };
+const room = { x: 2, y: 4 };
 // 通過した部屋を記録
 const visitedRooms = Array.from({ length: roomGridSize }, () =>
   Array(roomGridSize).fill(false)
@@ -232,24 +232,58 @@ function renderStands() {
   });
 }
 
-// 進入不可マスデータ: { [roomKey]: [{ x, y, type }] }
-const blockedTiles = {
-  "0,0": [{ x: 0, y: 0 }],
-
-  // 他の部屋も同様に追加可能
+// 宝箱配置データ: { [roomKey]: [{ x, y }] }
+const boxes = {
+  "2,4": [{ x: 2, y: 4 }],
 };
 
-function isBlockedTile(roomKey, x, y) {
-  const list = blockedTiles[roomKey] || [];
-  return list.some((tile) => tile.x === x && tile.y === y);
+function renderBoxes() {
+  // 既存の宝箱imgを削除
+  const oldBoxes = document.querySelectorAll(".box");
+  oldBoxes.forEach((el) => el.remove());
+  // 現在の部屋に宝箱があれば描画
+  const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
+  const roomKey = `${room.x},${room.y}`;
+  const list = boxes[roomKey] || [];
+  list.forEach(({ x, y }) => {
+    const img = document.createElement("img");
+    img.src = "img/UI/box.png";
+    img.alt = "宝箱";
+    img.className = "box";
+    img.style.position = "absolute";
+    img.style.left = `${
+      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
+    }px`;
+    img.style.top = `${
+      SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+      (gridSize - 1 - y) * tileSize
+    }px`;
+    img.style.width = `${tileSize}px`;
+    img.style.height = "auto";
+    img.style.zIndex = 8;
+    img.addEventListener("click", () => {
+      // 隣接マスにいる場合のみ反応
+      const dx = Math.abs(position.x - x);
+      const dy = Math.abs(position.y - y);
+      if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+        showBoxModal();
+      }
+    });
+    mapEl.appendChild(img);
+  });
 }
 
-// 台座配置時にblockedTilesへ自動追加（全てのstandsデータをblockedTilesに反映）
-Object.keys(stands).forEach((roomKey) => {
+// 進入不可マスデータ: { [roomKey]: [{ x, y, type }] }
+const blockedTiles = {
+  // 必要に応じて初期値を記述
+};
+
+// 宝箱配置時にblockedTilesへ自動追加（全てのboxesデータをblockedTilesに反映）
+Object.keys(boxes).forEach((roomKey) => {
   if (!blockedTiles[roomKey]) blockedTiles[roomKey] = [];
-  stands[roomKey].forEach(({ x, y }) => {
+  boxes[roomKey].forEach(({ x, y }) => {
     if (!blockedTiles[roomKey].some((tile) => tile.x === x && tile.y === y)) {
-      blockedTiles[roomKey].push({ x, y, type: "stand" });
+      blockedTiles[roomKey].push({ x, y, type: "box" });
     }
   });
 });
@@ -330,6 +364,7 @@ function render() {
   // 石板・台座の描画は部屋移動時やリサイズ時のみ行う
   // renderStoneboards();
   // renderStands();
+  // renderBoxes();
   // どの方向に隣接部屋があるか判定
   const up = room.y < roomGridSize - 1;
   const down = room.y > 0;
@@ -361,6 +396,191 @@ function render() {
   characterEl.style.transform = `translate(${x}px, ${y}px)`;
 }
 
+// 宝箱用カスタムモーダル表示関数
+function showBoxModal() {
+  // 既存モーダルがあれば削除
+  let old = document.getElementById("box-modal");
+  if (old) old.remove();
+  // モーダル本体
+  const modal = document.createElement("div");
+  modal.id = "box-modal";
+  modal.style.position = "fixed";
+  modal.style.top = "0";
+  modal.style.left = "0";
+  modal.style.width = "100vw";
+  modal.style.height = "100vh";
+  modal.style.background = "rgba(0,0,0,0.4)";
+  modal.style.display = "flex";
+  modal.style.flexDirection = "column";
+  modal.style.alignItems = "center";
+  modal.style.justifyContent = "center";
+  modal.style.zIndex = 2000;
+
+  // 中央パネル
+  const panel = document.createElement("div");
+  panel.style.background = "#444";
+  panel.style.borderRadius = "12px";
+  panel.style.padding = "4vw 4vw 2vw 4vw";
+  panel.style.display = "flex";
+  panel.style.flexDirection = "column";
+  panel.style.alignItems = "center";
+  panel.style.minWidth = "340px";
+  panel.style.maxWidth = "90vw";
+  panel.style.maxHeight = "90vh";
+  panel.style.boxSizing = "border-box";
+
+  // 問題画像
+  const img = document.createElement("img");
+  img.src = "img/nazo/nazo_1-1-3.png";
+  img.alt = "謎画像";
+  img.style.maxWidth = "min(60vw, 600px)";
+  img.style.maxHeight = "40vh";
+  img.style.width = "auto";
+  img.style.height = "auto";
+  img.style.marginBottom = "24px";
+  img.style.borderRadius = "8px";
+  panel.appendChild(img);
+
+  // 入力欄と送信ボタンを重ねて配置するラッパー
+  const inputWrapContainer = document.createElement("div");
+  inputWrapContainer.style.position = "relative";
+  inputWrapContainer.style.display = "inline-block";
+  inputWrapContainer.style.marginBottom = "24px";
+  panel.appendChild(inputWrapContainer);
+
+  // 入力欄（画像のみ）
+  const inputWrap = document.createElement("div");
+  inputWrap.style.display = "flex";
+  inputWrap.style.alignItems = "center";
+  inputWrap.style.minHeight = "48px";
+  inputWrap.style.background = "#fff";
+  inputWrap.style.borderRadius = "6px";
+  inputWrap.style.padding = "6px 60px 6px 12px"; // 右側にボタン分の余白
+  inputWrap.style.minWidth = "180px";
+  inputWrap.id = "box-input-wrap";
+  inputWrapContainer.appendChild(inputWrap);
+
+  // 送信ボタン（黄色の円形、入力欄の右中央に重ねる）
+  const sendBtn = document.createElement("button");
+  sendBtn.innerHTML = "";
+  sendBtn.style.width = "44px";
+  sendBtn.style.height = "44px";
+  sendBtn.style.borderRadius = "50%";
+  sendBtn.style.background = "#FFD600";
+  sendBtn.style.border = "2px solid #FFC400";
+  sendBtn.style.display = "flex";
+  sendBtn.style.alignItems = "center";
+  sendBtn.style.justifyContent = "center";
+  sendBtn.style.fontSize = "1.5rem";
+  sendBtn.style.fontWeight = "bold";
+  sendBtn.style.cursor = "pointer";
+  sendBtn.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
+  sendBtn.style.outline = "none";
+  sendBtn.style.position = "absolute";
+  sendBtn.style.right = "8px";
+  sendBtn.style.top = "50%";
+  sendBtn.style.transform = "translateY(-50%)";
+  inputWrapContainer.appendChild(sendBtn);
+
+  // キーボード
+  const keyboard = document.createElement("div");
+  keyboard.style.display = "flex";
+  keyboard.style.flexDirection = "column";
+  keyboard.style.gap = "8px";
+  keyboard.style.background = "#222";
+  keyboard.style.borderRadius = "8px";
+  keyboard.style.padding = "12px 8px";
+  keyboard.style.width = "100%";
+  keyboard.style.alignItems = "center";
+
+  // キー配列
+  const row1 = ["a", "b", "c", "d", "e", "f", "g", "h"];
+  const row2 = ["i", "j", "k", "l", "m", "n", "o", "p", "q"];
+  const row3 = ["r", "s", "t", "u", "v", "w", "delete"];
+  const makeKey = (key) => {
+    if (key === "delete") {
+      // ボタン要素
+      const btn = document.createElement("div");
+      btn.style.width = "72px"; // ボタン幅2倍
+      btn.style.height = "36px";
+      btn.style.display = "flex";
+      btn.style.alignItems = "center";
+      btn.style.justifyContent = "center";
+      btn.style.background = "#fff";
+      btn.style.border = "2px solid #000";
+      btn.style.borderRadius = "6px";
+      btn.style.boxSizing = "border-box";
+      btn.style.margin = "0 4px";
+      btn.style.cursor = "pointer";
+      // 画像
+      const keyImg = document.createElement("img");
+      keyImg.src = "img/moji/delete.png";
+      keyImg.alt = "delete";
+      keyImg.style.width = "36px";
+      keyImg.style.height = "36px";
+      keyImg.style.display = "block";
+      btn.appendChild(keyImg);
+      btn.addEventListener("click", () => {
+        // 最後の画像を消す
+        if (inputWrap.lastChild) inputWrap.removeChild(inputWrap.lastChild);
+      });
+      return btn;
+    } else {
+      const keyImg = document.createElement("img");
+      keyImg.src = `img/moji/moji${key}.png`;
+      keyImg.alt = key;
+      keyImg.style.width = "36px";
+      keyImg.style.height = "36px";
+      keyImg.style.margin = "0 4px";
+      keyImg.style.cursor = "pointer";
+      keyImg.style.background = "#fff";
+      keyImg.style.border = "2px solid #000";
+      keyImg.style.borderRadius = "6px";
+      keyImg.style.boxSizing = "border-box";
+      keyImg.addEventListener("click", () => {
+        // 入力欄に画像を追加
+        const moji = document.createElement("img");
+        moji.src = `img/moji/moji${key}.png`;
+        moji.alt = key;
+        moji.style.width = "36px";
+        moji.style.height = "36px";
+        moji.style.margin = "0 2px";
+        inputWrap.appendChild(moji);
+      });
+      return keyImg;
+    }
+  };
+  [row1, row2, row3].forEach((row) => {
+    const rowDiv = document.createElement("div");
+    rowDiv.style.display = "flex";
+    row.forEach((key) => rowDiv.appendChild(makeKey(key)));
+    keyboard.appendChild(rowDiv);
+  });
+  panel.appendChild(keyboard);
+
+  // 閉じる処理
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) modal.remove();
+  });
+
+  // 送信ボタン押下時の仮動作
+  sendBtn.addEventListener("click", () => {
+    // 入力された文字列（画像altの連結）を取得
+    let answer = "";
+    inputWrap.querySelectorAll("img").forEach((img) => (answer += img.alt));
+    if (answer === "cbtf") {
+      alert("正解！");
+      // モーダルを閉じる
+      modal.remove();
+    } else {
+      alert(`入力値: ${answer}`);
+    }
+  });
+
+  modal.appendChild(panel);
+  document.body.appendChild(modal);
+}
+
 function move(dir) {
   const delta = directions[dir];
   if (!delta) return;
@@ -390,6 +610,7 @@ function move(dir) {
     visitedRooms[room.y][room.x] = true;
     renderStoneboards();
     renderStands();
+    renderBoxes();
   } else if (nextY < 0 && position.x === 2 && dy === -1 && room.y > 0) {
     disableCharacterTransition();
     // 下端中央
@@ -400,6 +621,7 @@ function move(dir) {
     visitedRooms[room.y][room.x] = true;
     renderStoneboards();
     renderStands();
+    renderBoxes();
   } else if (nextX < 0 && position.y === 2 && dx === -1 && room.x > 0) {
     disableCharacterTransition();
     // 左端中央
@@ -410,6 +632,7 @@ function move(dir) {
     visitedRooms[room.y][room.x] = true;
     renderStoneboards();
     renderStands();
+    renderBoxes();
   } else if (
     nextX > 4 &&
     position.y === 2 &&
@@ -425,6 +648,7 @@ function move(dir) {
     visitedRooms[room.y][room.x] = true;
     renderStoneboards();
     renderStands();
+    renderBoxes();
   } else if (nextY < 0 && position.x === 2 && dy === 1 && room.y > 0) {
     // 下端中央から下へは移動不可
     return;
@@ -479,8 +703,15 @@ window.addEventListener("resize", () => {
   render();
   renderStoneboards();
   renderStands();
+  renderBoxes();
 });
 
 render();
 renderStoneboards();
 renderStands();
+renderBoxes();
+
+function isBlockedTile(roomKey, x, y) {
+  const list = blockedTiles[roomKey] || [];
+  return list.some((tile) => tile.x === x && tile.y === y);
+}
