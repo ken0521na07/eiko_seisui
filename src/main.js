@@ -182,6 +182,9 @@ const stands = {
   "4,4": [{ x: 0, y: 0 }],
 };
 
+// 台座に置かれたアイテム: { [roomKey]: { [x,y]: item } }
+const standItems = {};
+
 function renderStands() {
   // 既存の台座imgを削除
   const oldStands = document.querySelectorAll(".stand");
@@ -225,11 +228,318 @@ function renderStands() {
       const dx = Math.abs(position.x - x);
       const dy = Math.abs(position.y - y);
       if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-        showModal("img/UI/stand.png", "台座を調べた");
+        showStandModal(roomKey, x, y);
       }
     });
     mapEl.appendChild(img);
   });
+  renderStandItems();
+}
+
+// 台座上のアイテムをレンダリング
+function renderStandItems() {
+  // 既存の台座アイテム画像を削除
+  const oldItems = document.querySelectorAll(".stand-item-img");
+  oldItems.forEach((el) => el.remove());
+  // 現在の部屋のアイテムを描画
+  const roomKey = `${room.x},${room.y}`;
+  const items = standItems[roomKey] || {};
+  Object.entries(items).forEach(([key, item]) => {
+    const [x, y] = key.split(",").map(Number);
+    addStandItemImage(roomKey, x, y, item);
+  });
+}
+
+// 台座調査モーダル
+function showStandModal(roomKey, x, y) {
+  // 既存モーダルがあれば削除
+  let old = document.getElementById("stand-modal");
+  if (old) old.remove();
+  // モーダル本体
+  const modal = document.createElement("div");
+  modal.id = "stand-modal";
+  modal.style.position = "fixed";
+  modal.style.left = "0";
+  modal.style.right = "0";
+  modal.style.bottom = "0";
+  modal.style.height = "120px";
+  modal.style.background = "rgba(40,40,40,0.98)";
+  modal.style.display = "flex";
+  modal.style.alignItems = "center";
+  modal.style.justifyContent = "center";
+  modal.style.zIndex = 4000;
+  // パネル
+  const panel = document.createElement("div");
+  panel.style.display = "flex";
+  panel.style.alignItems = "center";
+  panel.style.gap = "32px";
+  // テキスト
+  const text = document.createElement("div");
+  text.textContent = "台座がある。ものを置きますか？";
+  text.style.color = "#fff";
+  text.style.fontSize = "1.2rem";
+  text.style.marginRight = "24px";
+  panel.appendChild(text);
+  // 「はい」ボタン
+  const yesBtn = document.createElement("button");
+  yesBtn.textContent = "はい";
+  yesBtn.style.marginRight = "12px";
+  yesBtn.style.fontSize = "1.1rem";
+  yesBtn.style.padding = "8px 24px";
+  yesBtn.style.background = "#FFD600";
+  yesBtn.style.border = "1px solid #FFC400";
+  yesBtn.style.borderRadius = "8px";
+  yesBtn.style.cursor = "pointer";
+  // 「いいえ」ボタン
+  const noBtn = document.createElement("button");
+  noBtn.textContent = "いいえ";
+  noBtn.style.fontSize = "1.1rem";
+  noBtn.style.padding = "8px 24px";
+  noBtn.style.background = "#fff";
+  noBtn.style.border = "1px solid #888";
+  noBtn.style.borderRadius = "8px";
+  noBtn.style.cursor = "pointer";
+  // ボタン動作
+  yesBtn.addEventListener("click", () => {
+    modal.remove();
+    openStandItemSelect(roomKey, x, y);
+  });
+
+  // 台座用アイテム選択画面
+  function openStandItemSelect(roomKey, standX, standY) {
+    // 既存モーダルがあれば削除
+    let old = document.getElementById("item-modal");
+    if (old) old.remove();
+
+    // モーダル本体
+    const modal = document.createElement("div");
+    modal.id = "item-modal";
+    modal.style.position = "fixed";
+    modal.style.top = "0";
+    modal.style.left = "0";
+    modal.style.width = "100vw";
+    modal.style.height = "100vh";
+    modal.style.background = "rgba(0,0,0,0.4)";
+    modal.style.display = "flex";
+    modal.style.alignItems = "center";
+    modal.style.justifyContent = "center";
+    modal.style.zIndex = 3000;
+
+    // パネル
+    const panel = document.createElement("div");
+    panel.style.background = "#444";
+    panel.style.borderRadius = "16px";
+    panel.style.padding = "32px 40px";
+    panel.style.display = "flex";
+    panel.style.flexDirection = "row";
+    panel.style.gap = "40px";
+    panel.style.minWidth = "600px";
+    panel.style.maxWidth = "90vw";
+    panel.style.maxHeight = "90vh";
+    panel.style.boxSizing = "border-box";
+    panel.style.position = "relative";
+
+    // 右: アイテム説明
+    const descWrap = document.createElement("div");
+    descWrap.style.display = "flex";
+    descWrap.style.flexDirection = "column";
+    descWrap.style.alignItems = "center";
+    descWrap.style.justifyContent = "flex-start";
+    descWrap.style.minWidth = "220px";
+    descWrap.style.maxWidth = "320px";
+    descWrap.style.background = "#333";
+    descWrap.style.borderRadius = "10px";
+    descWrap.style.padding = "24px 18px";
+    descWrap.style.boxSizing = "border-box";
+
+    // アイテム名
+    const descTitle = document.createElement("div");
+    descTitle.style.fontSize = "1.3rem";
+    descTitle.style.fontWeight = "bold";
+    descTitle.style.color = "#FFD600";
+    descTitle.style.marginBottom = "12px";
+    descWrap.appendChild(descTitle);
+    // アイテム画像
+    const descImg = document.createElement("img");
+    descImg.style.width = "64px";
+    descImg.style.height = "64px";
+    descImg.style.marginBottom = "16px";
+    descWrap.appendChild(descImg);
+    // アイテム説明
+    const descText = document.createElement("div");
+    descText.style.color = "#fff";
+    descText.style.fontSize = "1.1rem";
+    descText.style.textAlign = "center";
+    descText.style.width = "180px";
+    descText.style.wordBreak = "break-word";
+    descWrap.appendChild(descText);
+
+    // 左: アイテムグリッド
+    const grid = document.createElement("div");
+    grid.style.display = "grid";
+    grid.style.gridTemplateColumns = "repeat(3, 72px)";
+    grid.style.gridTemplateRows = "repeat(4, 72px)";
+    grid.style.gap = "18px";
+    grid.style.background = "#222";
+    grid.style.borderRadius = "10px";
+    grid.style.padding = "18px";
+    grid.style.minWidth = "270px";
+    grid.style.alignSelf = "flex-start";
+
+    // unlockedなアイテムのみ表示
+    const unlockedItems = itemList.filter((item) => item.unlocked);
+    unlockedItems.forEach((item, idx) => {
+      const cell = document.createElement("div");
+      cell.style.width = "72px";
+      cell.style.height = "72px";
+      cell.style.display = "flex";
+      cell.style.alignItems = "center";
+      cell.style.justifyContent = "center";
+      cell.style.background = "#fff";
+      cell.style.border = "2px solid #888";
+      cell.style.borderRadius = "8px";
+      cell.style.cursor = "pointer";
+      cell.style.transition = "border 0.2s";
+      // アイテム画像
+      const img = document.createElement("img");
+      img.src = item.img;
+      img.alt = item.name;
+      img.style.width = "48px";
+      img.style.height = "48px";
+      img.style.opacity = "1";
+      cell.appendChild(img);
+      // 選択時の処理
+      cell.addEventListener("click", () => {
+        modal.remove();
+        showStandPlaceResult(roomKey, standX, standY, item);
+      });
+      grid.appendChild(cell);
+    });
+
+    // 最初の説明はunlockedな最初のアイテム、なければ空欄
+    if (unlockedItems.length > 0) {
+      descTitle.textContent = unlockedItems[0].name;
+      descImg.src = unlockedItems[0].img;
+      descImg.alt = unlockedItems[0].name;
+      descText.textContent = unlockedItems[0].desc;
+    } else {
+      descTitle.textContent = "";
+      descImg.src = "";
+      descImg.alt = "";
+      descText.textContent = "";
+    }
+
+    // パネルに左右追加
+    panel.appendChild(grid);
+    if (unlockedItems.length > 0) {
+      panel.appendChild(descWrap);
+    }
+
+    // バツボタン
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "×";
+    closeBtn.style.position = "absolute";
+    closeBtn.style.top = "16px";
+    closeBtn.style.right = "16px";
+    closeBtn.style.width = "40px";
+    closeBtn.style.height = "40px";
+    closeBtn.style.fontSize = "1.7rem";
+    closeBtn.style.background = "#fff";
+    closeBtn.style.border = "2px solid #888";
+    closeBtn.style.borderRadius = "50%";
+    closeBtn.style.cursor = "pointer";
+    closeBtn.style.zIndex = 10;
+    closeBtn.addEventListener("click", () => modal.remove());
+    panel.appendChild(closeBtn);
+
+    // モーダル外クリックで閉じる
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) modal.remove();
+    });
+
+    modal.appendChild(panel);
+    document.body.appendChild(modal);
+  }
+
+  // 台座に置いた結果表示と画像配置
+  function showStandPlaceResult(roomKey, standX, standY, item) {
+    // standItemsにアイテムを保存
+    if (!standItems[roomKey]) standItems[roomKey] = {};
+    standItems[roomKey][`${standX},${standY + 1}`] = item;
+    // 既存モーダルがあれば削除
+    let old = document.getElementById("stand-modal");
+    if (old) old.remove();
+    // モーダル本体
+    const modal = document.createElement("div");
+    modal.id = "stand-modal";
+    modal.style.position = "fixed";
+    modal.style.left = "0";
+    modal.style.right = "0";
+    modal.style.bottom = "0";
+    modal.style.height = "100px";
+    modal.style.background = "rgba(40,40,40,0.98)";
+    modal.style.display = "flex";
+    modal.style.alignItems = "center";
+    modal.style.justifyContent = "center";
+    modal.style.zIndex = 4000;
+    // テキスト
+    const text = document.createElement("div");
+    text.textContent = `台座に${item.name}を置いた！`;
+    text.style.color = "#FFD600";
+    text.style.fontSize = "1.2rem";
+    text.style.fontWeight = "bold";
+    modal.appendChild(text);
+    document.body.appendChild(modal);
+    // 台座の一つ上のマスにアイテム画像を表示
+    addStandItemImage(roomKey, standX, standY, item);
+    // 数秒後に自動で消す
+    setTimeout(() => {
+      if (modal.parentNode) modal.remove();
+    }, 2000);
+  }
+
+  // 台座上にアイテム画像を表示
+  function addStandItemImage(roomKey, standX, standY, item) {
+    // 画像生成
+    const img = document.createElement("img");
+    img.src = item.img;
+    img.alt = item.name;
+    img.className = "stand-item-img";
+    img.dataset.room = roomKey;
+    img.dataset.x = standX;
+    img.dataset.y = standY + 1;
+    // 配置
+    const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
+    img.style.position = "absolute";
+    img.style.height = `${tileSize * 0.7}px`;
+    img.style.width = "auto";
+    // 上下：マスの下端に合わせる
+    img.style.top = `${
+      SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+      (gridSize - 1 - (standY + 1) + 1) * tileSize -
+      tileSize * 0.7
+    }px`;
+    // 左右：中央揃え
+    img.onload = function () {
+      img.style.left = `${
+        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) +
+        standX * tileSize +
+        (tileSize - img.offsetWidth) / 2
+      }px`;
+    };
+    img.style.zIndex = 9;
+    mapEl.appendChild(img);
+    // 画像が既に読み込まれていればonloadが発火しないので即時調整
+    if (img.complete) {
+      img.onload();
+    }
+  }
+
+  noBtn.addEventListener("click", () => modal.remove());
+  panel.appendChild(yesBtn);
+  panel.appendChild(noBtn);
+  modal.appendChild(panel);
+  document.body.appendChild(modal);
 }
 
 // 宝箱配置データ: { [roomKey]: [{ x, y, img, answer }] }
@@ -287,6 +597,16 @@ Object.keys(boxes).forEach((roomKey) => {
   boxes[roomKey].forEach(({ x, y }) => {
     if (!blockedTiles[roomKey].some((tile) => tile.x === x && tile.y === y)) {
       blockedTiles[roomKey].push({ x, y, type: "box" });
+    }
+  });
+});
+
+// 台座配置時にblockedTilesへ自動追加（全てのstandsデータをblockedTilesに反映）
+Object.keys(stands).forEach((roomKey) => {
+  if (!blockedTiles[roomKey]) blockedTiles[roomKey] = [];
+  stands[roomKey].forEach(({ x, y }) => {
+    if (!blockedTiles[roomKey].some((tile) => tile.x === x && tile.y === y)) {
+      blockedTiles[roomKey].push({ x, y, type: "stand" });
     }
   });
 });
@@ -891,6 +1211,7 @@ function move(dir) {
     renderStoneboards();
     renderStands();
     renderBoxes();
+    renderStandItems();
   } else if (nextY < 0 && position.x === 2 && dy === -1 && room.y > 0) {
     disableCharacterTransition();
     // 下端中央
@@ -902,6 +1223,7 @@ function move(dir) {
     renderStoneboards();
     renderStands();
     renderBoxes();
+    renderStandItems();
   } else if (nextX < 0 && position.y === 2 && dx === -1 && room.x > 0) {
     disableCharacterTransition();
     // 左端中央
@@ -913,6 +1235,7 @@ function move(dir) {
     renderStoneboards();
     renderStands();
     renderBoxes();
+    renderStandItems();
   } else if (
     nextX > 4 &&
     position.y === 2 &&
