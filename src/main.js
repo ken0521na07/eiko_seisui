@@ -164,7 +164,7 @@ const floorGridSizes = {
 // キャラクターの現在位置（マス座標）
 const position = { x: 2, y: 2 };
 // 現在の部屋座標
-const room = { x: 1, y: 1, floor: 1, mapnum: 1 };
+const room = { x: 0, y: 0, floor: 1, mapnum: 1 };
 
 // 現在のフロアのグリッドサイズを取得
 function getRoomGridSize(floor = room.floor) {
@@ -1126,7 +1126,7 @@ const itemList = [
     name: "コイン",
     img: "img/item/coin.png",
     desc: "金色のコイン。そこまで価値は高くなさそうだ。",
-    unlocked: true, // 初期は未解放
+    unlocked: false, // 初期は未解放
   },
   {
     id: "tsubo",
@@ -1154,14 +1154,14 @@ const itemList = [
     name: "貯金箱",
     img: "img/item/chokinbako.png",
     desc: "木でできた貯金箱。中にコインが入っていそうだ。",
-    unlocked: true,
+    unlocked: false,
   },
   {
     id: "mirror",
     name: "鏡",
     img: "img/item/mirror.png",
     desc: "ピカピカの鏡。",
-    unlocked: true,
+    unlocked: false,
   },
   // ここに新しいアイテムを追加可能
 ];
