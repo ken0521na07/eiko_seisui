@@ -30,7 +30,7 @@ const PLAYABLE_PX = MAP_PX - SAFE_MARGIN * 2; // 300
 const position = { x: 2, y: 2 };
 // 現在の部屋座標（5x5の部屋グリッド、左下が(0,0)）
 const roomGridSize = 5;
-const room = { x: 0, y: 0 };
+const room = { x: 1, y: 3 };
 // 通過した部屋を記録
 const visitedRooms = Array.from({ length: roomGridSize }, () =>
   Array(roomGridSize).fill(false)
@@ -165,6 +165,161 @@ function renderStoneboards() {
   });
 }
 
+// 特別な魔法陣（白）配置データ: { [roomKey]: [{ x, y, width, height }] }
+// width, heightはマス単位
+const magicCircles = {
+  "1,3": [{ x: 2, y: 2, width: 3, height: 3, state: "white" }],
+  "3,3": [{ x: 2, y: 2, width: 3, height: 3, state: "white" }],
+};
+
+// 魔法陣の状態を管理（roomKey -> state）
+const magicCircleStates = {};
+
+// 魔法陣img要素を管理
+let magicCircleElements = [];
+
+// ボタン配置データ: { [roomKey]: [{ x, y }] }
+const buttons_data = {
+  "1,3": [{ x: 4, y: 0, color: "blue" }],
+  "3,3": [{ x: 4, y: 0, color: "red" }],
+};
+
+// ボタンimg要素を管理
+let buttonElements = [];
+
+// 普通の魔法陣（mahoujin.png）配置データ
+const normalMagicCircles = {
+  "0,0": [{ width: 3, height: 3 }],
+  "0,2": [{ width: 3, height: 3 }],
+  "0,4": [{ width: 3, height: 3 }],
+  "1,1": [{ width: 3, height: 3 }],
+  "1,3": [{ width: 3, height: 3 }],
+  "2,0": [{ width: 3, height: 3 }],
+  "2,2": [{ width: 3, height: 3 }],
+  "2,4": [{ width: 3, height: 3 }],
+  "4,0": [{ width: 3, height: 3 }],
+  "4,2": [{ width: 3, height: 3 }],
+  "4,4": [{ width: 3, height: 3 }],
+};
+
+// 普通の魔法陣img要素を管理
+let normalMagicCircleElements = [];
+
+function renderMagicCircles() {
+  // 既存の魔法陣imgを削除
+  magicCircleElements.forEach((el) => el.remove());
+  magicCircleElements = [];
+  // 現在の部屋に魔法陣があれば描画
+  const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
+  const roomKey = `${room.x},${room.y}`;
+  const circles = magicCircles[roomKey] || [];
+  circles.forEach(({ x, y, width, height, state: defaultState }) => {
+    const img = document.createElement("img");
+    // 状態に応じた画像を選択
+    const currentState = magicCircleStates[roomKey] || defaultState || "white";
+    let imageSrc = "img/UI/circle_white.png";
+    if (currentState === "blue") imageSrc = "img/UI/circle_blue.png";
+    if (currentState === "red") imageSrc = "img/UI/circle_red.png";
+    img.src = imageSrc;
+    img.alt = "魔法陣";
+    img.className = "magic-circle";
+    img.style.position = "absolute";
+    // 魔法陣の中央がマップ中央に来るように配置
+    const circleWidthPx = width * tileSize;
+    const circleHeightPx = height * tileSize;
+    img.style.width = `${circleWidthPx}px`;
+    img.style.height = `${circleHeightPx}px`;
+    // 画像の中央を部屋の中央に合わせる
+    const mapCenterX =
+      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + (gridSize / 2) * tileSize;
+    const mapCenterY =
+      SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) + (gridSize / 2) * tileSize;
+    img.style.left = `${mapCenterX - circleWidthPx / 2}px`;
+    img.style.top = `${mapCenterY - circleHeightPx / 2}px`;
+    img.style.zIndex = 6;
+    mapEl.appendChild(img);
+    magicCircleElements.push(img);
+  });
+}
+
+function renderNormalMagicCircles() {
+  // 既存の普通の魔法陣imgを削除
+  normalMagicCircleElements.forEach((el) => el.remove());
+  normalMagicCircleElements = [];
+  // 現在の部屋に魔法陣があれば描画
+  const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
+  const roomKey = `${room.x},${room.y}`;
+  const circles = normalMagicCircles[roomKey] || [];
+  circles.forEach(({ width, height }) => {
+    const img = document.createElement("img");
+    img.src = "img/UI/mahoujin.png";
+    img.alt = "魔法陣";
+    img.className = "normal-magic-circle";
+    img.style.position = "absolute";
+    // 魔法陣の中央がマップ中央に来るように配置
+    const circleWidthPx = width * tileSize;
+    const circleHeightPx = height * tileSize;
+    img.style.width = `${circleWidthPx}px`;
+    img.style.height = `${circleHeightPx}px`;
+    // 画像の中央を部屋の中央に合わせる
+    const mapCenterX =
+      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + (gridSize / 2) * tileSize;
+    const mapCenterY =
+      SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) + (gridSize / 2) * tileSize;
+    img.style.left = `${mapCenterX - circleWidthPx / 2}px`;
+    img.style.top = `${mapCenterY - circleHeightPx / 2}px`;
+    img.style.zIndex = 5;
+    mapEl.appendChild(img);
+    normalMagicCircleElements.push(img);
+  });
+}
+
+function renderButtons() {
+  // 既存のボタンimgを削除
+  buttonElements.forEach((el) => el.remove());
+  buttonElements = [];
+  // 現在の部屋にボタンがあれば描画
+  const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
+  const roomKey = `${room.x},${room.y}`;
+  const btns = buttons_data[roomKey] || [];
+  btns.forEach(({ x, y, color }) => {
+    const img = document.createElement("img");
+    img.src =
+      color === "red" ? "img/UI/button_red.png" : "img/UI/button_blue.png";
+    img.alt = color === "red" ? "赤いボタン" : "青いボタン";
+    img.className = "button";
+    img.style.position = "absolute";
+    img.style.left = `${
+      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
+    }px`;
+    img.style.top = `${
+      SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+      (gridSize - 1 - y) * tileSize
+    }px`;
+    img.style.height = `${tileSize * 0.9}px`;
+    img.style.width = "auto";
+    // 左右中央揃え
+    img.onload = function () {
+      img.style.left = `${
+        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) +
+        x * tileSize +
+        (tileSize - img.offsetWidth) / 2
+      }px`;
+    };
+    img.style.zIndex = 7;
+    img.addEventListener("click", () => {
+      // 隣接マスにいる場合のみ反応
+      const dx = Math.abs(position.x - x);
+      const dy = Math.abs(position.y - y);
+      if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+        showButtonModal(roomKey, x, y, color);
+      }
+    });
+    mapEl.appendChild(img);
+    buttonElements.push(img);
+  });
+}
+
 // 台座配置データ: { [roomKey]: [{ x, y }] }
 const stands = {
   "0,0": [{ x: 0, y: 0 }],
@@ -264,6 +419,91 @@ function renderStandItems() {
 }
 
 // 台座調査モーダル
+function showButtonModal(roomKey, x, y, color = "blue") {
+  // 既存モーダルがあれば削除
+  let old = document.getElementById("button-modal");
+  if (old) old.remove();
+
+  // モーダル本体
+  const modal = document.createElement("div");
+  modal.id = "button-modal";
+  modal.style.position = "fixed";
+  modal.style.left = "0";
+  modal.style.right = "0";
+  modal.style.bottom = "0";
+  modal.style.height = "120px";
+  modal.style.background = "rgba(40,40,40,0.98)";
+  modal.style.display = "flex";
+  modal.style.alignItems = "center";
+  modal.style.justifyContent = "center";
+  modal.style.zIndex = 4000;
+  // パネル
+  const panel = document.createElement("div");
+  panel.style.display = "flex";
+  panel.style.alignItems = "center";
+  panel.style.gap = "32px";
+  // テキスト
+  const text = document.createElement("div");
+  text.textContent =
+    color === "red"
+      ? "赤いスイッチがある。押しますか？"
+      : "青いスイッチがある。押しますか？";
+  text.style.color = "#fff";
+  text.style.fontSize = "1.2rem";
+  text.style.marginRight = "24px";
+  panel.appendChild(text);
+  // 「はい」ボタン
+  const yesBtn = document.createElement("button");
+  yesBtn.textContent = "はい";
+  yesBtn.style.marginRight = "12px";
+  yesBtn.style.fontSize = "1.1rem";
+  yesBtn.style.padding = "8px 24px";
+  yesBtn.style.background = "#FFD600";
+  yesBtn.style.border = "1px solid #FFC400";
+  yesBtn.style.borderRadius = "8px";
+  yesBtn.style.cursor = "pointer";
+  // 「いいえ」ボタン
+  const noBtn = document.createElement("button");
+  noBtn.textContent = "いいえ";
+  noBtn.style.fontSize = "1.1rem";
+  noBtn.style.padding = "8px 24px";
+  noBtn.style.background = "#fff";
+  noBtn.style.border = "1px solid #888";
+  noBtn.style.borderRadius = "8px";
+  noBtn.style.cursor = "pointer";
+  // ボタン動作
+  yesBtn.addEventListener("click", () => {
+    // 魔法陣の状態を色に変更し再描画
+    magicCircleStates[roomKey] = color;
+    renderMagicCircles();
+    // 画面下モーダル内でメッセージを表示
+    text.textContent =
+      color === "red"
+        ? "円から、燃えるような熱気が放たれている。触れたら焼けてしまいそうだ。"
+        : "円から、凍てつような冷気が放たれている。触れたら凍ってしまいそうだ。";
+    // 操作ボタンを閉じるボタンだけにする
+    yesBtn.remove();
+    noBtn.remove();
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "閉じる";
+    closeBtn.style.fontSize = "1.1rem";
+    closeBtn.style.padding = "8px 24px";
+    closeBtn.style.background = "#fff";
+    closeBtn.style.border = "1px solid #888";
+    closeBtn.style.borderRadius = "8px";
+    closeBtn.style.cursor = "pointer";
+    closeBtn.addEventListener("click", () => modal.remove());
+    panel.appendChild(closeBtn);
+  });
+  noBtn.addEventListener("click", () => {
+    modal.remove();
+  });
+  panel.appendChild(yesBtn);
+  panel.appendChild(noBtn);
+  modal.appendChild(panel);
+  document.body.appendChild(modal);
+}
+
 function showStandModal(roomKey, x, y) {
   // 台座にアイテムが置かれているかチェック
   const items = standItems[roomKey] || {};
@@ -750,6 +990,16 @@ Object.keys(stands).forEach((roomKey) => {
   });
 });
 
+// ボタン配置時にblockedTilesへ自動追加（全てのbuttons_dataをblockedTilesに反映）
+Object.keys(buttons_data).forEach((roomKey) => {
+  if (!blockedTiles[roomKey]) blockedTiles[roomKey] = [];
+  buttons_data[roomKey].forEach(({ x, y }) => {
+    if (!blockedTiles[roomKey].some((tile) => tile.x === x && tile.y === y)) {
+      blockedTiles[roomKey].push({ x, y, type: "button" });
+    }
+  });
+});
+
 // --- 石板調査状態リセット用 ---
 function reset() {
   localStorage.removeItem("checkedStoneboards");
@@ -791,44 +1041,133 @@ const itemList = [
     id: "coin",
     name: "コイン",
     img: "img/item/coin.png",
-    desc: "ただのコインだ",
+    desc: "金色のコイン。そこまで価値は高くなさそうだ。",
     unlocked: false, // 初期は未解放
   },
   {
     id: "tsubo",
     name: "水瓶",
     img: "img/item/tsubo.png",
-    desc: "水が入った入れ物だ",
+    desc: "水を入れるための容器。今は空っぽ。",
     unlocked: false, // 初期は未解放
   },
   {
     id: "teppan",
     name: "錆びた鉄板",
     img: "img/item/teppan.png",
-    desc: "錆びた円形の鉄板だ",
-    unlocked: false,
+    desc: "さび付いた鉄板。やすりがあれば磨けそうだ。",
+    unlocked: true,
   },
   {
     id: "yasuri",
     name: "やすり",
     img: "img/item/yasuri.png",
-    desc: "ただのやすりだ。錆を落とすのに使える。",
-    unlocked: false,
+    desc: "錆びた金属を磨く道具。",
+    unlocked: true,
   },
   {
     id: "chokinbako",
     name: "貯金箱",
     img: "img/item/chokinbako.png",
-    desc: "貯金箱だ。中に何か入っているようだ。",
+    desc: "木でできた貯金箱。中にコインが入っていそうだ。",
+    unlocked: false,
+  },
+  {
+    id: "mirror",
+    name: "鏡",
+    img: "img/item/mirror.png",
+    desc: "ピカピカの鏡。",
     unlocked: false,
   },
   // ここに新しいアイテムを追加可能
 ];
 
+// アイテム組み合わせルール: { item1: item2 -> result }
+const itemCombinations = [
+  {
+    items: ["teppan", "yasuri"],
+    result: {
+      id: "mirror",
+      name: "鏡",
+      message: "鏡ができた！",
+    },
+  },
+];
+
+// 指定されたアイテムIDが組み合わせられるかを確認
+function canCombine(itemId) {
+  return itemCombinations.some((combo) => combo.items.includes(itemId));
+}
+
+// 指定されたアイテムIDの組み合わせ相手を取得
+function getItemToCombineWith(itemId) {
+  const combo = itemCombinations.find((c) => c.items.includes(itemId));
+  if (!combo) return null;
+  const otherItem = combo.items.find((id) => id !== itemId);
+  return otherItem;
+}
+
+// 指定されたアイテムの組み合わせ結果を取得
+function getCombinationResult(itemId1, itemId2) {
+  const combo = itemCombinations.find(
+    (c) =>
+      (c.items[0] === itemId1 && c.items[1] === itemId2) ||
+      (c.items[0] === itemId2 && c.items[1] === itemId1)
+  );
+  return combo ? combo.result : null;
+}
+
 // アイテム解放関数
 function unlockItem(id) {
   const item = itemList.find((i) => i.id === id);
   if (item) item.unlocked = true;
+}
+
+// アイテム削除関数
+function removeItem(id) {
+  const item = itemList.find((i) => i.id === id);
+  if (item) item.unlocked = false;
+}
+
+// アイテム合成処理
+function performCombination(result, itemId1, itemId2) {
+  // 合成に使用したアイテムを削除
+  removeItem(itemId1);
+  removeItem(itemId2);
+
+  // 合成後のアイテムを解放
+  unlockItem(result.id);
+
+  // 合成完了メッセージを表示
+  showCombinationMessage(result.message, result.id);
+}
+
+// 合成完了メッセージ表示
+function showCombinationMessage(message, resultItemId) {
+  const modal = document.createElement("div");
+  modal.style.position = "fixed";
+  modal.style.left = "0";
+  modal.style.right = "0";
+  modal.style.bottom = "0";
+  modal.style.height = "100px";
+  modal.style.background = "rgba(40,40,40,0.98)";
+  modal.style.display = "flex";
+  modal.style.alignItems = "center";
+  modal.style.justifyContent = "center";
+  modal.style.zIndex = 4000;
+
+  const text = document.createElement("div");
+  text.textContent = message;
+  text.style.color = "#FFD600";
+  text.style.fontSize = "1.2rem";
+  text.style.fontWeight = "bold";
+  modal.appendChild(text);
+  document.body.appendChild(modal);
+
+  // 数秒後に自動で消す
+  setTimeout(() => {
+    if (modal.parentNode) modal.remove();
+  }, 2000);
 }
 
 // アイテム画面モーダル表示関数
@@ -914,12 +1253,15 @@ function showItemModal() {
 
   // アイテム画像を並べる
   let selectedIdx = 0;
+  let selectedItemId = null;
   // unlockedかつ台座に置かれていないアイテムのみ表示
   const placedIds = getPlacedItemIds();
   const unlockedItems = itemList.filter(
     (item) => item.unlocked && !placedIds.includes(item.id)
   );
-  unlockedItems.forEach((item, idx) => {
+
+  // セルを作成するヘルパー関数
+  const createItemCell = (item, idx) => {
     const cell = document.createElement("div");
     cell.style.width = "72px";
     cell.style.height = "72px";
@@ -927,11 +1269,13 @@ function showItemModal() {
     cell.style.alignItems = "center";
     cell.style.justifyContent = "center";
     cell.style.background = "#fff";
-    cell.style.border =
-      selectedIdx === idx ? "3px solid #FFD600" : "2px solid #888";
+    cell.style.border = "2px solid #888";
     cell.style.borderRadius = "8px";
     cell.style.cursor = "pointer";
     cell.style.transition = "border 0.2s";
+    cell.dataset.itemId = item.id;
+    cell.dataset.itemIdx = idx;
+
     // アイテム画像
     const img = document.createElement("img");
     img.src = item.img;
@@ -940,19 +1284,88 @@ function showItemModal() {
     img.style.height = "48px";
     img.style.opacity = "1";
     cell.appendChild(img);
-    // 選択時の処理
-    cell.addEventListener("click", () => {
+
+    // ドラッグ可能にする
+    cell.draggable = true;
+
+    // ドラッグ開始
+    cell.addEventListener("dragstart", (e) => {
+      selectedItemId = item.id;
+      selectedIdx = idx;
       // 全セルのborderをリセット
       Array.from(grid.children).forEach((c, i) => {
-        c.style.border = i === idx ? "3px solid #FFD600" : "2px solid #888";
+        c.style.border = "2px solid #888";
       });
+      // 選択されたセルをハイライト
+      cell.style.border = "3px solid #FFD600";
+
+      // 組み合わせ相手がいれば点滅させる
+      const combineWith = getItemToCombineWith(item.id);
+      if (combineWith) {
+        const combineCellIdx = unlockedItems.findIndex(
+          (i) => i.id === combineWith
+        );
+        if (combineCellIdx !== -1) {
+          const combineCell = grid.children[combineCellIdx];
+          combineCell.classList.add("combine-blink");
+        }
+      }
+
       // 説明を更新
       descTitle.textContent = item.name;
       descImg.src = item.img;
       descImg.alt = item.name;
       descText.textContent = item.desc;
     });
-    grid.appendChild(cell);
+
+    // ドラッグオーバー
+    cell.addEventListener("dragover", (e) => {
+      e.preventDefault();
+    });
+
+    // ドロップ
+    cell.addEventListener("drop", (e) => {
+      e.preventDefault();
+      if (selectedItemId && selectedItemId !== item.id) {
+        const result = getCombinationResult(selectedItemId, item.id);
+        if (result) {
+          performCombination(result, selectedItemId, item.id);
+          // アイテム画面を閉じて再度開く
+          modal.remove();
+          setTimeout(() => showItemModal(), 500);
+        }
+      }
+    });
+
+    // ドラッグ終了
+    cell.addEventListener("dragend", (e) => {
+      // 点滅を削除
+      Array.from(grid.children).forEach((c) => {
+        c.classList.remove("combine-blink");
+      });
+    });
+
+    // クリック（従来の動作）
+    cell.addEventListener("click", () => {
+      if (!cell.classList.contains("combine-blink")) {
+        // 全セルのborderをリセット
+        Array.from(grid.children).forEach((c) => {
+          c.style.border = "2px solid #888";
+          c.classList.remove("combine-blink");
+        });
+        // 説明を更新
+        descTitle.textContent = item.name;
+        descImg.src = item.img;
+        descImg.alt = item.name;
+        descText.textContent = item.desc;
+      }
+    });
+
+    return cell;
+  };
+
+  unlockedItems.forEach((item, idx) => {
+    grid.appendChild(createItemCell(item, idx));
   });
 
   // 最初の説明はunlockedな最初のアイテム、なければ空欄
@@ -1352,6 +1765,9 @@ function move(dir) {
     visitedRooms[room.y][room.x] = true;
     renderStoneboards();
     renderStands();
+    renderMagicCircles();
+    renderNormalMagicCircles();
+    renderButtons();
     renderBoxes();
     renderStandItems();
   } else if (nextY < 0 && position.x === 2 && dy === -1 && room.y > 0) {
@@ -1364,18 +1780,9 @@ function move(dir) {
     visitedRooms[room.y][room.x] = true;
     renderStoneboards();
     renderStands();
-    renderBoxes();
-    renderStandItems();
-  } else if (nextX < 0 && position.y === 2 && dx === -1 && room.x > 0) {
-    disableCharacterTransition();
-    // 左端中央
-    room.x -= 1;
-    nextX = 4;
-    nextY = 2;
-    movedRoom = true;
-    visitedRooms[room.y][room.x] = true;
-    renderStoneboards();
-    renderStands();
+    renderMagicCircles();
+    renderNormalMagicCircles();
+    renderButtons();
     renderBoxes();
     renderStandItems();
   } else if (
@@ -1393,6 +1800,23 @@ function move(dir) {
     visitedRooms[room.y][room.x] = true;
     renderStoneboards();
     renderStands();
+    renderMagicCircles();
+    renderNormalMagicCircles();
+    renderButtons();
+    renderBoxes();
+  } else if (nextX < 0 && position.y === 2 && dx === -1 && room.x > 0) {
+    disableCharacterTransition();
+    // 左端中央
+    room.x -= 1;
+    nextX = 4;
+    nextY = 2;
+    movedRoom = true;
+    visitedRooms[room.y][room.x] = true;
+    renderStoneboards();
+    renderStands();
+    renderMagicCircles();
+    renderNormalMagicCircles();
+    renderButtons();
     renderBoxes();
   } else if (nextY < 0 && position.x === 2 && dy === 1 && room.y > 0) {
     // 下端中央から下へは移動不可
@@ -1448,12 +1872,20 @@ window.addEventListener("resize", () => {
   render();
   renderStoneboards();
   renderStands();
+  renderMagicCircles();
+  renderNormalMagicCircles();
+  renderButtons();
+  renderButtons();
   renderBoxes();
 });
 
 render();
 renderStoneboards();
 renderStands();
+renderMagicCircles();
+renderNormalMagicCircles();
+renderButtons();
+renderButtons();
 renderBoxes();
 
 function isBlockedTile(roomKey, x, y) {

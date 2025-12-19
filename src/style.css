@@ -18,6 +18,20 @@
   pointer-events: none;
 }
 
+@keyframes combine-blink {
+  0%, 100% {
+    background-color: #fff;
+    border-color: #888;
+  }
+  50% {
+    background-color: #ffff99;
+    border-color: #ffd600;
+  }
+}
+.combine-blink {
+  animation: combine-blink 0.6s infinite;
+}
+
 .modal {
   position: fixed;
   top: 0;
@@ -76,6 +90,26 @@
 
 .stoneboard {
   pointer-events: auto;
+  -o-object-fit: contain;
+     object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.18));
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+}
+
+.magic-circle {
+  pointer-events: none;
+  -o-object-fit: contain;
+     object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.18));
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+}
+
+.normal-magic-circle {
+  pointer-events: none;
   -o-object-fit: contain;
      object-fit: contain;
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.18));
@@ -345,6 +379,7 @@ body .minimap__cell--current {
   display: grid;
   place-items: center;
   pointer-events: none;
+  z-index: 10;
 }
 
 .character img {
@@ -640,4 +675,19 @@ body .minimap__cell--current {
   border-radius: 50%;
   cursor: pointer;
   z-index: 10;
+}
+
+/* アイテム組み合わせの点滅アニメーション */
+@keyframes combine-blink {
+  0%, 100% {
+    background-color: #fff;
+    border-color: #888;
+  }
+  50% {
+    background-color: #ffff99;
+    border-color: #ffd600;
+  }
+}
+.combine-blink {
+  animation: combine-blink 0.6s infinite;
 }/*# sourceMappingURL=style.css.map */

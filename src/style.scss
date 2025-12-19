@@ -13,6 +13,24 @@
   z-index: 6;
   pointer-events: none;
 }
+
+// アイテム組み合わせの点滅アニメーション
+@keyframes combine-blink {
+  0%,
+  100% {
+    background-color: #fff;
+    border-color: #888;
+  }
+  50% {
+    background-color: #ffff99;
+    border-color: #ffd600;
+  }
+}
+
+.combine-blink {
+  animation: combine-blink 0.6s infinite;
+}
+
 // モーダル
 .modal {
   position: fixed;
@@ -68,6 +86,21 @@
 // 石板画像
 .stoneboard {
   pointer-events: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.18));
+  user-select: none;
+}
+
+// 魔法陣画像
+.magic-circle {
+  pointer-events: none;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.18));
+  user-select: none;
+}
+
+.normal-magic-circle {
+  pointer-events: none;
   object-fit: contain;
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.18));
   user-select: none;
@@ -329,6 +362,7 @@ body {
   display: grid;
   place-items: center;
   pointer-events: none;
+  z-index: 10;
 }
 
 .character img {
@@ -614,4 +648,29 @@ body {
   border-radius: 50%;
   cursor: pointer;
   z-index: 10;
+}
+
+/* アイテム組み合わせの点滅アニメーション */
+@keyframes combine-blink {
+  0%,
+  100% {
+    background-color: #fff;
+    border-color: #888;
+  }
+  50% {
+    background-color: #ffff99;
+    border-color: #ffd600;
+  }
+}
+
+.combine-blink {
+  animation: combine-blink 0.6s infinite;
+}
+
+// ボタン画像
+.button {
+  pointer-events: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.18));
+  user-select: none;
 }
