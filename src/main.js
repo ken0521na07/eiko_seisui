@@ -484,7 +484,7 @@ const stands = {
 };
 
 // 台座に置かれたアイテム: { [roomKey]: { [x,y]: item } }
-const standItems = {};
+let standItems = {};
 
 // 台座に置かれているアイテムIDのリストを取得
 function getPlacedItemIds() {
