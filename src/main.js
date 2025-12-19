@@ -9,10 +9,8 @@ function loadUnlockedItems() {
       localStorage.getItem("unlockedItems") || "[]"
     );
     itemList.forEach((i) => {
-      // 初期値がtrueのアイテムは上書きしない（初期解放アイテム対応）
-      if (!i.unlocked) {
-        i.unlocked = unlockedIds.includes(i.id);
-      }
+      const defaultState = defaultUnlockedById[i.id] || false;
+      i.unlocked = defaultState || unlockedIds.includes(i.id);
     });
   } catch {}
 }
@@ -709,14 +707,23 @@ function showButtonModal(roomKey, x, y, color = "blue") {
         standItems[roomKey]["2,2"] &&
         standItems[roomKey]["2,2"].id === "chokinbako"
       ) {
-        // 貯金箱を消し、コインを入手
-        delete standItems[roomKey]["2,2"];
-        unlockItem("coin");
-        renderStandItems();
+        // 先に熱気のテキストを表示し、閉じたら処理を実行
         showBottomModal({
-          text: "貯金箱が燃え、中から「コイン」が出てきた！",
+          text: "円から、燃えるような熱気が放たれている。触れたら焼けてしまいそうだ。",
           close: () => {
-            showModal("img/item/coin.png", "「コイン」を手に入れた！");
+            // 貯金箱を消し、コインを入手
+            delete standItems[roomKey]["2,2"];
+            saveStandItems();
+            renderStandItems();
+            removeItem("chokinbako");
+            unlockItem("coin");
+            // 貯金箱が燃えた演出を挟む
+            showBottomModal({
+              text: "貯金箱が燃え、中から「コイン」が出てきた！",
+              close: () => {
+                showModal("img/item/coin.png", "「コイン」を手に入れた！");
+              },
+            });
           },
         });
         return;
@@ -724,7 +731,7 @@ function showButtonModal(roomKey, x, y, color = "blue") {
       showBottomModal({
         text:
           color === "red"
-            ? "円ら、燃えるような熱気が放たれている。触れたら焼けてしまいそうだ。"
+            ? "円から、燃えるような熱気が放たれている。触れたら焼けてしまいそうだ。"
             : "円から、凍てつような冷気が放たれている。触れたら凍ってしまいそうだ。",
       });
     },
@@ -1059,20 +1066,11 @@ function reset() {
   localStorage.removeItem("checkedStoneboards");
   localStorage.removeItem("openedBoxes");
   localStorage.removeItem("standItems");
-
-  // itemListの初期値を取得するため、スクリプト読み込み時の初期状態を復元
-  // 一時的にlocalStorageを削除してから、itemListの現在の状態（コードで定義された初期値）を保存
-  const initialUnlocked = {};
-  itemList.forEach((item) => {
-    initialUnlocked[item.id] = item.unlocked;
-  });
-
-  // localStorageをクリア
   localStorage.removeItem("unlockedItems");
 
-  // itemListを初期状態に戻す（コードで定義されたunlocked値を使う）
+  // itemListを初期状態に戻す（コード定義の初期値を使う）
   itemList.forEach((item) => {
-    item.unlocked = initialUnlocked[item.id] || false;
+    item.unlocked = defaultUnlockedById[item.id] || false;
   });
 
   standItems = {};
@@ -1164,6 +1162,12 @@ const itemList = [
   },
   // ここに新しいアイテムを追加可能
 ];
+
+// アイテム定義上の初期解放状態を保持
+const defaultUnlockedById = itemList.reduce((acc, item) => {
+  acc[item.id] = item.unlocked;
+  return acc;
+}, {});
 
 // アイテム組み合わせルール: { item1: item2 -> result }
 const itemCombinations = [
@@ -1270,6 +1274,15 @@ function showItemModal() {
   const descText = document.createElement("div");
   descText.className = "inventory-desc__text";
   descWrap.appendChild(descText);
+  // 組み合わせボタン（必要時のみ表示）
+  const combineBtn = document.createElement("button");
+  combineBtn.className = "inventory-combine-btn";
+  combineBtn.textContent = "組み合わせる";
+  combineBtn.classList.add("yes");
+  combineBtn.style.marginTop = "12px";
+  combineBtn.style.width = "100%";
+  combineBtn.style.display = "none";
+  descWrap.appendChild(combineBtn);
 
   // 左: アイテムグリッド
   const grid = document.createElement("div");
@@ -1278,6 +1291,8 @@ function showItemModal() {
   // アイテム画像を並べる
   let selectedIdx = 0;
   let selectedItemId = null;
+  let combinationMode = false;
+  let combinationBaseId = null;
   // unlockedかつ台座に置かれていないアイテムのみ表示
   const placedIds = getPlacedItemIds();
   const unlockedItems = itemList.filter(
@@ -1298,80 +1313,76 @@ function showItemModal() {
     img.className = "inventory-cell__img";
     cell.appendChild(img);
 
-    // ドラッグ可能にする
-    cell.draggable = true;
-
-    // ドラッグ開始
-    cell.addEventListener("dragstart", (e) => {
-      selectedItemId = item.id;
-      selectedIdx = idx;
-      // 全セルのborderをリセット
-      Array.from(grid.children).forEach((c, i) => {
-        c.style.border = "2px solid #888";
-      });
-      // 選択されたセルをハイライト
-      cell.style.border = "3px solid #FFD600";
-
-      // 組み合わせ相手がいれば点滅させる
-      const combineWith = getItemToCombineWith(item.id);
-      if (combineWith) {
-        const combineCellIdx = unlockedItems.findIndex(
-          (i) => i.id === combineWith
-        );
-        if (combineCellIdx !== -1) {
-          const combineCell = grid.children[combineCellIdx];
-          combineCell.classList.add("combine-blink");
-        }
-      }
-
-      // 説明を更新
-      descTitle.textContent = item.name;
-      descImg.src = item.img;
-      descImg.alt = item.name;
-      descText.textContent = item.desc;
-    });
-
-    // ドラッグオーバー
-    cell.addEventListener("dragover", (e) => {
-      e.preventDefault();
-    });
-
-    // ドロップ
-    cell.addEventListener("drop", (e) => {
-      e.preventDefault();
-      if (selectedItemId && selectedItemId !== item.id) {
-        const result = getCombinationResult(selectedItemId, item.id);
-        if (result) {
-          performCombination(result, selectedItemId, item.id);
-          // アイテム画面を閉じて再度開く
-          modal.remove();
-          setTimeout(() => showItemModal(), 500);
-        }
-      }
-    });
-
-    // ドラッグ終了
-    cell.addEventListener("dragend", (e) => {
-      // 点滅を削除
+    const clearHighlights = () => {
       Array.from(grid.children).forEach((c) => {
+        c.style.border = "2px solid #888";
         c.classList.remove("combine-blink");
       });
-    });
+    };
 
-    // クリック（従来の動作）
-    cell.addEventListener("click", () => {
-      if (!cell.classList.contains("combine-blink")) {
-        // 全セルのborderをリセット
-        Array.from(grid.children).forEach((c) => {
-          c.style.border = "2px solid #888";
-          c.classList.remove("combine-blink");
-        });
-        // 説明を更新
-        descTitle.textContent = item.name;
-        descImg.src = item.img;
-        descImg.alt = item.name;
-        descText.textContent = item.desc;
+    const updateDesc = (targetItem) => {
+      descTitle.textContent = targetItem.name;
+      descImg.src = targetItem.img;
+      descImg.alt = targetItem.name;
+      descText.textContent = targetItem.desc;
+
+      const partnerId = getItemToCombineWith(targetItem.id);
+      const hasPartner =
+        partnerId && unlockedItems.some((i) => i.id === partnerId);
+      if (hasPartner) {
+        combineBtn.style.display = "block";
+        combineBtn.onclick = () => {
+          combinationMode = true;
+          combinationBaseId = targetItem.id;
+          clearHighlights();
+          const partnerIdx = unlockedItems.findIndex((i) => i.id === partnerId);
+          if (partnerIdx !== -1 && grid.children[partnerIdx]) {
+            grid.children[partnerIdx].classList.add("combine-blink");
+          }
+          showBottomModal({
+            text: `${targetItem.name}と組み合わせるアイテムを選んでください`,
+            close: () => {},
+          });
+        };
+      } else {
+        combineBtn.style.display = "none";
+        combinationMode = false;
+        combinationBaseId = null;
       }
+    };
+
+    cell.addEventListener("click", () => {
+      clearHighlights();
+      cell.style.border = "3px solid #FFD600";
+
+      if (combinationMode) {
+        if (!combinationBaseId || combinationBaseId === item.id) return;
+        const baseId = combinationBaseId;
+        const result = getCombinationResult(baseId, item.id);
+        combinationMode = false;
+        combinationBaseId = null;
+        clearHighlights();
+        if (result) {
+          const baseItem = itemList.find((i) => i.id === baseId);
+          const baseName = baseItem?.name || baseId || "";
+          const partnerName = item.name;
+          const resultItem = itemList.find((i) => i.id === result.id);
+          const resultName = resultItem?.name || result.name || result.id;
+          const resultImg = resultItem?.img || "";
+          removeItem(baseId);
+          removeItem(item.id);
+          unlockItem(result.id);
+          const combinationText = `${baseName}と${partnerName}を組み合わせて${resultName}を入手した！`;
+          showModal(resultImg, combinationText);
+          modal.remove();
+          return;
+        }
+        return;
+      }
+
+      selectedItemId = item.id;
+      selectedIdx = idx;
+      updateDesc(item);
     });
 
     return cell;
@@ -1383,10 +1394,36 @@ function showItemModal() {
 
   // 最初の説明はunlockedな最初のアイテム、なければ空欄
   if (unlockedItems.length > 0) {
-    descTitle.textContent = unlockedItems[0].name;
-    descImg.src = unlockedItems[0].img;
-    descImg.alt = unlockedItems[0].name;
-    descText.textContent = unlockedItems[0].desc;
+    const first = unlockedItems[0];
+    descTitle.textContent = first.name;
+    descImg.src = first.img;
+    descImg.alt = first.name;
+    descText.textContent = first.desc;
+    // 初期選択時に組み合わせボタンも更新
+    const partnerId = getItemToCombineWith(first.id);
+    const hasPartner =
+      partnerId && unlockedItems.some((i) => i.id === partnerId);
+    if (hasPartner) {
+      combineBtn.style.display = "block";
+      combineBtn.onclick = () => {
+        combinationMode = true;
+        combinationBaseId = first.id;
+        Array.from(grid.children).forEach((c) => {
+          c.style.border = "2px solid #888";
+          c.classList.remove("combine-blink");
+        });
+        const partnerIdx = unlockedItems.findIndex((i) => i.id === partnerId);
+        if (partnerIdx !== -1 && grid.children[partnerIdx]) {
+          grid.children[partnerIdx].classList.add("combine-blink");
+        }
+        showBottomModal({
+          text: `${first.name}と組み合わせるアイテムを選んでください`,
+          close: () => {},
+        });
+      };
+    } else {
+      combineBtn.style.display = "none";
+    }
   } else {
     descTitle.textContent = "";
     descImg.src = "";
