@@ -157,12 +157,13 @@ const PLAYABLE_PX = MAP_PX - SAFE_MARGIN * 2; // 300
 const floorGridSizes = {
   1: 5, // 1F: 5x5
   2: 3, // 2F: 3x3
+  3: 1, // 3F: 1x1
 };
 
 // キャラクターの現在位置（マス座標）
 const position = { x: 2, y: 2 };
 // 現在の部屋座標
-const room = { x: 0, y: 0, floor: 1, mapnum: 1 };
+const room = { x: 0, y: 0, floor: 2, mapnum: 1 };
 
 // 現在のフロアのグリッドサイズを取得
 function getRoomGridSize(floor = room.floor) {
@@ -195,7 +196,8 @@ const characterEl = document.getElementById("character");
 const buttons = document.querySelectorAll(".dpad__btn");
 
 // ハシゴ出現フラグ
-let isLadderVisible = false;
+let isLadderVisible = false; // 1F→2Fハシゴ
+let isLadder2FVisible = false; // 2F→3Fハシゴ
 
 // 石板配置データ: { [roomKey]: [{ x, y, img }] }
 // roomKey形式: "x,y,floor,mapnum"
@@ -210,6 +212,7 @@ const stoneboards = {
   "4,1,1,1": [{ x: 4, y: 2, img: "nazo_1-1-20.png", direction: "right" }],
   "4,3,1,1": [{ x: 4, y: 2, img: "nazo_1-1-10.png", direction: "right" }],
   "1,1,1,1": [{ x: 4, y: 4, img: "nazo_1-1-17.png", direction: "right" }],
+  "1,1,2,1": [{ x: 4, y: 4, img: "nazo_1-2-5.png", direction: "right" }],
 };
 
 // 石板img要素を管理
@@ -221,13 +224,22 @@ function renderLadder() {
   const oldLadder = document.querySelector(".ladder");
   if (oldLadder) oldLadder.remove();
 
-  // ハシゴが出現していない、または部屋が"1,1,1,1"でない場合は何もしない
   const roomKey = getRoomKey();
-  if (!isLadderVisible || roomKey !== "1,1,1,1") return;
-
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
-  const ladderX = 2;
-  const ladderY = 2;
+  let shouldRender = false;
+  let ladderX = 2;
+  let ladderY = 2;
+
+  // 1F→2Fハシゴ (1,1,1,1の中央)
+  if (isLadderVisible && roomKey === "1,1,1,1") {
+    shouldRender = true;
+  }
+  // 2F→3Fハシゴ (1,1,2,1の中央)
+  else if (isLadder2FVisible && roomKey === "1,1,2,1") {
+    shouldRender = true;
+  }
+
+  if (!shouldRender) return;
 
   const img = document.createElement("img");
   img.src = "img/UI/ladder.png";
@@ -370,7 +382,7 @@ function renderStoneboards() {
     img.addEventListener("click", () => {
       // キャラクターが同じマスにいるときのみ調べられる
       if (position.x === x && position.y === y) {
-        if (roomKey === "1,1,1,1") {
+        if (roomKey === "1,1,1,1" || roomKey === "1,1,2,1") {
           showModal(
             `img/nazo/${imgName}`,
             "石板に謎のようなものが書かれている。\n解き明かすと、次の道が開けそうだ。"
@@ -421,6 +433,8 @@ const normalMagicCircles = {
   "4,0,1,1": [{ width: 3, height: 3 }],
   "4,2,1,1": [{ width: 3, height: 3 }],
   "4,4,1,1": [{ width: 3, height: 3 }],
+  // 2F: 1,1 にオレンジの魔法陣を配置
+  "1,1,2,1": [{ width: 3, height: 3, img: "img/UI/mahoujin_orange.png" }],
 };
 
 // 普通の魔法陣img要素を管理
@@ -471,9 +485,9 @@ function renderNormalMagicCircles() {
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
   const roomKey = getRoomKey();
   const circles = normalMagicCircles[roomKey] || [];
-  circles.forEach(({ width, height }) => {
+  circles.forEach(({ width, height, img: overrideImg }) => {
     const img = document.createElement("img");
-    img.src = "img/UI/mahoujin.png";
+    img.src = overrideImg || "img/UI/mahoujin.png";
     img.alt = "魔法陣";
     img.className = "normal-magic-circle";
     img.style.position = "absolute";
@@ -961,6 +975,18 @@ const boxes = {
   "0,2,1,1": [{ x: 0, y: 2, img: "img/nazo/nazo_1-1-11.png", answer: "cgsj" }],
   "4,2,1,1": [{ x: 4, y: 2, img: "img/nazo/nazo_1-1-15.png", answer: "cjkf" }],
   "2,0,1,1": [{ x: 2, y: 0, img: "img/nazo/nazo_1-1-23.png", answer: "cjlm" }],
+  "1,2,2,1": [{ x: 2, y: 4, img: "img/nazo/nazo_1-2-2A.png", answer: "dqv" }],
+  "0,1,2,1": [{ x: 0, y: 2, img: "img/nazo/nazo_1-2-4A.png", answer: "dqr" }],
+  "2,1,2,1": [{ x: 4, y: 2, img: "img/nazo/nazo_1-2-6A.png", answer: "dqt" }],
+  "1,0,2,1": [{ x: 2, y: 0, img: "img/nazo/nazo_1-2-8A.png", answer: "dqs" }],
+};
+
+// 2F宝箱の開封後に表示する紙画像
+const boxPaperRewards = {
+  "1,2,2,1": "img/nazo/nazo_1-2-2B.png",
+  "0,1,2,1": "img/nazo/nazo_1-2-4B.png",
+  "2,1,2,1": "img/nazo/nazo_1-2-6B.png",
+  "1,0,2,1": "img/nazo/nazo_1-2-8B.png",
 };
 
 // --- 宝箱開封状態管理 ---
@@ -982,6 +1008,30 @@ function setOpenedBox(roomKey, x, y) {
 function isOpenedBox(roomKey, x, y) {
   const opened = getOpenedBoxes();
   return opened[roomKey] && opened[roomKey].some((b) => b.x === x && b.y === y);
+}
+
+// --- 2F宝箱開封順序管理 ---
+function getBoxOpenOrder() {
+  try {
+    return JSON.parse(localStorage.getItem("boxOpenOrder") || "[]") || [];
+  } catch {
+    return [];
+  }
+}
+function addBoxOpenOrder(roomKey) {
+  const order = getBoxOpenOrder();
+  order.push(roomKey);
+  localStorage.setItem("boxOpenOrder", JSON.stringify(order));
+}
+function resetBoxOpenOrder() {
+  localStorage.removeItem("boxOpenOrder");
+}
+function checkBoxOpenSequence() {
+  const order = getBoxOpenOrder();
+  const correctOrder = ["1,0,2,1", "0,1,2,1", "1,2,2,1", "2,1,2,1"];
+  if (order.length !== 4) return null;
+  const isCorrect = order.every((key, i) => key === correctOrder[i]);
+  return isCorrect;
 }
 
 function renderBoxes() {
@@ -1009,7 +1059,7 @@ function renderBoxes() {
     img.style.width = `${tileSize}px`;
     img.style.height = "auto";
     img.style.zIndex = 8;
-    if (!opened) {
+    const enableClick = () => {
       img.style.cursor = "pointer";
       img.addEventListener("click", () => {
         // 隣接マスにいる場合のみ反応
@@ -1019,9 +1069,18 @@ function renderBoxes() {
           showBoxModal(roomKey, x, y);
         }
       });
+    };
+
+    if (!opened) {
+      enableClick();
     } else {
       img.style.opacity = "0.7";
-      img.style.cursor = "default";
+      // 2Fの紙表示付き宝箱は開封後も閲覧可能にする
+      if (boxPaperRewards[roomKey]) {
+        enableClick();
+      } else {
+        img.style.cursor = "default";
+      }
     }
     mapEl.appendChild(img);
   });
@@ -1067,6 +1126,7 @@ function reset() {
   localStorage.removeItem("openedBoxes");
   localStorage.removeItem("standItems");
   localStorage.removeItem("unlockedItems");
+  resetBoxOpenOrder();
 
   // itemListを初期状態に戻す（コード定義の初期値を使う）
   itemList.forEach((item) => {
@@ -1541,7 +1601,7 @@ function render() {
   if (key) {
     bgImg.src = `img/map/map_${key}.webp`;
   } else {
-    bgImg.src = "img/UI/background_0.webp";
+    bgImg.src = "img/UI/background_0.png";
   }
 
   // キャラクターの足元がマスの下端に揃うように配置。ただしmapからはみ出さないように制限
@@ -1561,6 +1621,29 @@ function render() {
 
 // 宝箱用カスタムモーダル表示関数
 function showBoxModal(
+  roomKey = `${room.x},${room.y}`,
+  boxX = position.x,
+  boxY = position.y
+) {
+  // 既に開封済みなら、2Fの紙（あれば）を表示して終了
+  if (isOpenedBox(roomKey, boxX, boxY)) {
+    if (boxPaperRewards[roomKey]) {
+      const paperImg = boxPaperRewards[roomKey];
+      showModal(paperImg, "宝箱が開いた！中には一枚の紙が貼られている。");
+    }
+    return;
+  }
+  // 未開封の場合は、先に説明用のボトムモーダルを表示
+  showBottomModal({
+    text: "謎を解けば、宝箱が開きそうだ。",
+    close: () => {
+      // ボトムモーダルを閉じたらキーボード画面を表示
+      showBoxChallenge(roomKey, boxX, boxY);
+    },
+  });
+}
+
+function showBoxChallenge(
   roomKey = `${room.x},${room.y}`,
   boxX = position.x,
   boxY = position.y
@@ -1692,6 +1775,49 @@ function showBoxModal(
           "img/item/chokinbako.png",
           "宝箱が開いた！\n中から「貯金箱」を手に入れた！"
         );
+      } else if (boxPaperRewards[roomKey]) {
+        const paperImg = boxPaperRewards[roomKey];
+        // 2F宝箱の場合は開封順序を記録
+        addBoxOpenOrder(roomKey);
+        const openOrder = getBoxOpenOrder();
+
+        // 4個目の宝箱を開けた場合は順序判定
+        if (openOrder.length === 4) {
+          const isCorrect = checkBoxOpenSequence();
+          showModal(
+            paperImg,
+            "宝箱が開いた！中には一枚の紙が貼られている。",
+            () => {
+              if (isCorrect) {
+                // 正解: 2F→3Fハシゴを出現させる
+                isLadder2FVisible = true;
+                renderLadder();
+                showBottomModal({
+                  text: "どこかで何かが変化したようだ。",
+                  close: () => {},
+                });
+              } else {
+                // 不正解: 2Fの宝箱を全てリセット
+                const opened = getOpenedBoxes();
+                const boxKeys2F = ["1,2,2,1", "0,1,2,1", "2,1,2,1", "1,0,2,1"];
+                boxKeys2F.forEach((key) => {
+                  if (opened[key]) {
+                    delete opened[key];
+                  }
+                });
+                localStorage.setItem("openedBoxes", JSON.stringify(opened));
+                resetBoxOpenOrder();
+                renderBoxes();
+                showBottomModal({
+                  text: "全ての宝箱が閉まったようだ。",
+                  close: () => {},
+                });
+              }
+            }
+          );
+        } else {
+          showModal(paperImg, "宝箱が開いた！中には一枚の紙が貼られている。");
+        }
       } else {
         alert("正解！");
       }
@@ -1726,14 +1852,21 @@ function move(dir) {
     characterEl.style.transition = "";
   }
   // Y軸: 上端はy=gridSize-1, 下端はy=0
-  const currentGridSize = getRoomGridSize();
-  const maxGridCoord = currentGridSize - 1;
+  const roomCount = getRoomGridSize();
+  const maxTileCoord = gridSize - 1;
   if (
-    nextY > maxGridCoord &&
+    nextY > maxTileCoord &&
     position.x === 2 &&
     dy === 1 &&
-    room.y < currentGridSize - 1
+    room.y < roomCount - 1
   ) {
+    // 2F中央(2,2,2,1)への進入規制: 下(2,1)から上へ
+    if (room.floor === 2 && room.mapnum === 1 && room.x === 2 && room.y === 1) {
+      showBottomModal({
+        text: "通路に赤い扉がある。扉には鍵がかかっている、鍵があれば開きそうだ。",
+      });
+      return;
+    }
     disableCharacterTransition();
     // 上端中央
     room.y += 1;
@@ -1743,8 +1876,8 @@ function move(dir) {
     if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
     if (!visitedRooms[room.mapnum][room.floor])
       visitedRooms[room.mapnum][room.floor] = Array.from(
-        { length: currentGridSize },
-        () => Array(currentGridSize).fill(false)
+        { length: roomCount },
+        () => Array(roomCount).fill(false)
       );
     visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
     renderStoneboards();
@@ -1759,14 +1892,14 @@ function move(dir) {
     disableCharacterTransition();
     // 下端中央
     room.y -= 1;
-    nextY = maxGridCoord;
+    nextY = maxTileCoord;
     nextX = 2;
     movedRoom = true;
     if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
     if (!visitedRooms[room.mapnum][room.floor])
       visitedRooms[room.mapnum][room.floor] = Array.from(
-        { length: currentGridSize },
-        () => Array(currentGridSize).fill(false)
+        { length: roomCount },
+        () => Array(roomCount).fill(false)
       );
     visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
     renderStoneboards();
@@ -1777,11 +1910,18 @@ function move(dir) {
     renderBoxes();
     renderStandItems();
   } else if (
-    nextX > maxGridCoord &&
+    nextX > maxTileCoord &&
     position.y === 2 &&
     dx === 1 &&
-    room.x < currentGridSize - 1
+    room.x < roomCount - 1
   ) {
+    // 2F中央(2,2,2,1)への進入規制: 左(1,2)から右へ
+    if (room.floor === 2 && room.mapnum === 1 && room.x === 1 && room.y === 2) {
+      showBottomModal({
+        text: "通路に赤い扉がある。扉には鍵がかかっている、鍵があれば開きそうだ。",
+      });
+      return;
+    }
     disableCharacterTransition();
     // 右端中央
     room.x += 1;
@@ -1791,8 +1931,8 @@ function move(dir) {
     if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
     if (!visitedRooms[room.mapnum][room.floor])
       visitedRooms[room.mapnum][room.floor] = Array.from(
-        { length: currentGridSize },
-        () => Array(currentGridSize).fill(false)
+        { length: roomCount },
+        () => Array(roomCount).fill(false)
       );
     visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
     renderStoneboards();
@@ -1806,14 +1946,14 @@ function move(dir) {
     disableCharacterTransition();
     // 左端中央
     room.x -= 1;
-    nextX = maxGridCoord;
+    nextX = maxTileCoord;
     nextY = 2;
     movedRoom = true;
     if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
     if (!visitedRooms[room.mapnum][room.floor])
       visitedRooms[room.mapnum][room.floor] = Array.from(
-        { length: currentGridSize },
-        () => Array(currentGridSize).fill(false)
+        { length: roomCount },
+        () => Array(roomCount).fill(false)
       );
     visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
     renderStoneboards();
@@ -1827,10 +1967,10 @@ function move(dir) {
     // 下端中央から下へは移動不可
     return;
   } else if (
-    nextY > maxGridCoord &&
+    nextY > maxTileCoord &&
     position.x === 2 &&
     dy === -1 &&
-    room.y < currentGridSize - 1
+    room.y < roomCount - 1
   ) {
     // 上端中央から上へは移動不可
     return;
@@ -1849,6 +1989,7 @@ function move(dir) {
   position.y = nextY;
 
   // ハシゴマスに入った時の処理
+  // 1F→2Fハシゴ
   if (
     isLadderVisible &&
     room.x === 1 &&
@@ -1865,6 +2006,47 @@ function move(dir) {
         room.floor = 2;
         room.x = 1;
         room.y = 1;
+        position.x = 2;
+        position.y = 2;
+        // 訪問済みマークを付ける
+        if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
+        if (!visitedRooms[room.mapnum][room.floor])
+          visitedRooms[room.mapnum][room.floor] = Array.from(
+            { length: getRoomGridSize(room.floor) },
+            () => Array(getRoomGridSize(room.floor)).fill(false)
+          );
+        visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
+        // 各要素を再描画
+        renderStoneboards();
+        renderStands();
+        renderMagicCircles();
+        renderNormalMagicCircles();
+        renderButtons();
+        renderBoxes();
+        renderStandItems();
+        renderLadder();
+        render();
+      },
+      no: () => {},
+    });
+  }
+  // 2F→3Fハシゴ
+  else if (
+    isLadder2FVisible &&
+    room.x === 1 &&
+    room.y === 1 &&
+    room.floor === 2 &&
+    room.mapnum === 1 &&
+    position.x === 2 &&
+    position.y === 2
+  ) {
+    showBottomModal({
+      text: "ハシゴを上りますか？",
+      yes: () => {
+        // 3Fの(0,0,3,1)に移動
+        room.floor = 3;
+        room.x = 0;
+        room.y = 0;
         position.x = 2;
         position.y = 2;
         // 訪問済みマークを付ける
