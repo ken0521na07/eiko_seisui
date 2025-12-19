@@ -417,7 +417,6 @@ const normalMagicCircles = {
   "0,2,1,1": [{ width: 3, height: 3 }],
   "0,4,1,1": [{ width: 3, height: 3 }],
   "1,1,1,1": [{ width: 3, height: 3 }],
-  "1,3,1,1": [{ width: 3, height: 3 }],
   "2,0,1,1": [{ width: 3, height: 3 }],
   "2,2,1,1": [{ width: 3, height: 3 }],
   "2,4,1,1": [{ width: 3, height: 3 }],
@@ -707,11 +706,11 @@ function showButtonModal(roomKey, x, y, color = "blue") {
         roomKey === "3,3,1,1" &&
         color === "red" &&
         standItems[roomKey] &&
-        standItems[roomKey]["2,3"] &&
-        standItems[roomKey]["2,3"].id === "chokinbako"
+        standItems[roomKey]["2,2"] &&
+        standItems[roomKey]["2,2"].id === "chokinbako"
       ) {
         // 貯金箱を消し、コインを入手
-        delete standItems[roomKey]["2,3"];
+        delete standItems[roomKey]["2,2"];
         unlockItem("coin");
         renderStandItems();
         showBottomModal({
