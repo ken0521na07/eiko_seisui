@@ -30,59 +30,42 @@ function loadStandItems() {
 // options: { text, yes, no, close }
 // yes/no: ボタン押下時のコールバック, close: 閉じる時のコールバック
 function showBottomModal(options) {
-  // 既存モーダルがあれば削除
+  // 既存モーダル・オーバーレイがあれば削除
   let old = document.getElementById("bottom-modal");
   if (old) old.remove();
+  let oldOverlay = document.getElementById("bottom-modal-overlay");
+  if (oldOverlay) oldOverlay.remove();
+
+  // オーバーレイ生成
+  const overlay = document.createElement("div");
+  overlay.id = "bottom-modal-overlay";
+  overlay.className = "bottom-modal-overlay";
+  document.body.appendChild(overlay);
   // モーダル本体
   const modal = document.createElement("div");
   modal.id = "bottom-modal";
   modal.className = "stand-modal";
-  modal.style.position = "fixed";
-  modal.style.left = "0";
-  modal.style.right = "0";
-  modal.style.bottom = "0";
-  modal.style.height = "120px";
-  modal.style.background = "rgba(40,40,40,0.98)";
-  modal.style.display = "flex";
-  modal.style.alignItems = "center";
-  modal.style.justifyContent = "center";
-  modal.style.zIndex = 4000;
   // パネル
   const panel = document.createElement("div");
-  panel.style.display = "flex";
-  panel.style.alignItems = "center";
-  panel.style.gap = "32px";
+  panel.className = "panel";
   // テキスト
   const text = document.createElement("div");
+  text.className = "text";
   text.textContent = options.text || "";
-  text.style.color = "#fff";
-  text.style.fontSize = "1.2rem";
-  text.style.marginRight = "24px";
   panel.appendChild(text);
   // ボタン
   if (options.yes || options.no) {
     // はい・いいえ型
     const yesBtn = document.createElement("button");
     yesBtn.textContent = "はい";
-    yesBtn.style.marginRight = "12px";
-    yesBtn.style.fontSize = "1.1rem";
-    yesBtn.style.padding = "8px 24px";
-    yesBtn.style.background = "#FFD600";
-    yesBtn.style.border = "1px solid #FFC400";
-    yesBtn.style.borderRadius = "8px";
-    yesBtn.style.cursor = "pointer";
+    yesBtn.className = "yes";
     yesBtn.addEventListener("click", () => {
       modal.remove();
       if (options.yes) options.yes();
     });
     const noBtn = document.createElement("button");
     noBtn.textContent = "いいえ";
-    noBtn.style.fontSize = "1.1rem";
-    noBtn.style.padding = "8px 24px";
-    noBtn.style.background = "#fff";
-    noBtn.style.border = "1px solid #888";
-    noBtn.style.borderRadius = "8px";
-    noBtn.style.cursor = "pointer";
+    noBtn.className = "no";
     noBtn.addEventListener("click", () => {
       modal.remove();
       if (options.no) options.no();
@@ -93,12 +76,7 @@ function showBottomModal(options) {
     // 閉じるだけ型
     const closeBtn = document.createElement("button");
     closeBtn.textContent = "閉じる";
-    closeBtn.style.fontSize = "1.1rem";
-    closeBtn.style.padding = "8px 24px";
-    closeBtn.style.background = "#fff";
-    closeBtn.style.border = "1px solid #888";
-    closeBtn.style.borderRadius = "8px";
-    closeBtn.style.cursor = "pointer";
+    closeBtn.className = "close";
     closeBtn.addEventListener("click", () => {
       modal.remove();
       if (options.close) options.close();
@@ -107,35 +85,54 @@ function showBottomModal(options) {
   }
   modal.appendChild(panel);
   document.body.appendChild(modal);
+
+  // モーダルを閉じるときはオーバーレイも削除
+  function removeModalAndOverlay() {
+    modal.remove();
+    overlay.remove();
+  }
+  // ボタンのイベントを上書き
+  const yesBtn = modal.querySelector("button");
+  if (yesBtn) {
+    yesBtn.onclick = () => {
+      removeModalAndOverlay();
+      if (options.yes) options.yes();
+    };
+  }
+  const noBtn = modal.querySelectorAll("button")[1];
+  if (noBtn) {
+    noBtn.onclick = () => {
+      removeModalAndOverlay();
+      if (options.no) options.no();
+    };
+  }
+  const closeBtn = modal.querySelector("button");
+  if (closeBtn && !options.yes && !options.no) {
+    closeBtn.onclick = () => {
+      removeModalAndOverlay();
+      if (options.close) options.close();
+    };
+  }
 }
 // モーダル表示関数
 // onClose: 閉じた時のコールバック（省略可）
 function showModal(imgSrc, text, onClose) {
+  // 画像のみ中央モーダルで表示
   const modal = document.getElementById("modal");
   const modalImg = document.getElementById("modal-img");
-  const modalText = document.getElementById("modal-text");
   modalImg.src = imgSrc;
-  modalText.textContent = text;
   modal.style.display = "flex";
 
-  // 閉じるボタン
-  const closeBtn = document.getElementById("modal-close");
-  // 既存のイベントを一旦解除
-  const newCloseBtn = closeBtn.cloneNode(true);
-  closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
-  newCloseBtn.addEventListener("click", () => {
-    modal.style.display = "none";
-    if (typeof onClose === "function") onClose();
-  });
-
-  // モーダル外クリックで閉じる
-  modal.addEventListener("click", function handler(e) {
-    if (e.target === modal) {
+  // テキストは下部モーダルで表示
+  showBottomModal({
+    text: text,
+    close: () => {
       modal.style.display = "none";
       if (typeof onClose === "function") onClose();
-      modal.removeEventListener("click", handler);
-    }
+    },
   });
+
+  // 閉じるボタンは非表示（UIから消す）
 }
 
 // モーダル閉じる処理
@@ -148,10 +145,6 @@ window.addEventListener("DOMContentLoaded", () => {
   closeBtn.addEventListener("click", () => {
     modal.style.display = "none";
   });
-  // モーダル外クリックで閉じる
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) modal.style.display = "none";
-  });
 });
 const gridSize = 5;
 // マップ画像サイズ（px）
@@ -163,7 +156,7 @@ const PLAYABLE_PX = MAP_PX - SAFE_MARGIN * 2; // 300
 const position = { x: 2, y: 2 };
 // 現在の部屋座標（5x5の部屋グリッド、左下が(0,0)）
 const roomGridSize = 5;
-const room = { x: 1, y: 3 };
+const room = { x: 1, y: 1 };
 // 通過した部屋を記録
 const visitedRooms = Array.from({ length: roomGridSize }, () =>
   Array(roomGridSize).fill(false)
@@ -176,22 +169,16 @@ const buttons = document.querySelectorAll(".dpad__btn");
 
 // 石板配置データ: { [roomKey]: [{ x, y, img }] }
 const stoneboards = {
-  // 部屋(1,0)の(2,0)に石板
-  "1,0": [{ x: 2, y: 0, img: "nazo_1-1-22.png" }],
-  // 部屋(3,0)の(2,0)に石板
-  "3,0": [{ x: 2, y: 0, img: "nazo_1-1-24.png" }],
-  // 部屋(1,4)の(2,4)に石板
-  "1,4": [{ x: 2, y: 4, img: "nazo_1-1-2.png" }],
-  // 部屋(3,4)の(2,4)に石板
-  "3,4": [{ x: 2, y: 4, img: "nazo_1-1-4.png" }],
-  // 部屋(0,1)の(0,2)に石板
-  "0,1": [{ x: 0, y: 2, img: "nazo_1-1-16.png" }],
-  // 部屋(0,3)の(0,2)に石板
-  "0,3": [{ x: 0, y: 2, img: "nazo_1-1-6.png" }],
-  // 部屋(4,1)の(4,2)に石板
-  "4,1": [{ x: 4, y: 2, img: "nazo_1-1-20.png" }],
-  // 部屋(4,3)の(4,2)に石板
-  "4,3": [{ x: 4, y: 2, img: "nazo_1-1-10.png" }],
+  // direction: down(下端), up(上端), right(右寄せ90度), left(左寄せ90度)
+  "1,0": [{ x: 2, y: 0, img: "nazo_1-1-22.png", direction: "down" }],
+  "3,0": [{ x: 2, y: 0, img: "nazo_1-1-24.png", direction: "down" }],
+  "1,4": [{ x: 2, y: 4, img: "nazo_1-1-2.png", direction: "up" }],
+  "3,4": [{ x: 2, y: 4, img: "nazo_1-1-4.png", direction: "up" }],
+  "0,1": [{ x: 0, y: 2, img: "nazo_1-1-16.png", direction: "left" }],
+  "0,3": [{ x: 0, y: 2, img: "nazo_1-1-6.png", direction: "left" }],
+  "4,1": [{ x: 4, y: 2, img: "nazo_1-1-20.png", direction: "right" }],
+  "4,3": [{ x: 4, y: 2, img: "nazo_1-1-10.png", direction: "right" }],
+  "1,1": [{ x: 4, y: 4, img: "nazo_1-1-17.png", direction: "right" }],
 };
 
 // 石板img要素を管理
@@ -219,49 +206,67 @@ function renderStoneboards() {
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
   const roomKey = `${room.x},${room.y}`;
   const boards = stoneboards[roomKey] || [];
-  boards.forEach(({ x, y, img: imgName }) => {
+  boards.forEach(({ x, y, img: imgName, direction }) => {
     const img = document.createElement("img");
     img.src = "img/UI/stoneboard.png";
     img.alt = "石板";
     img.className = "stoneboard";
     img.style.position = "absolute";
-    img.style.left = `${
-      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
-    }px`;
     const boardWidth = tileSize;
     const boardHeight = tileSize * (117 / 501);
     img.style.width = `${boardWidth}px`;
     img.style.height = `${boardHeight}px`;
-    // (2,4)のマスだけ上端、(0,2)は左寄せ90度回転、(4,2)は右寄せ90度回転
-    if (x === 2 && y === 4) {
+    // 向きに応じて配置
+    if (direction === "up") {
+      img.style.left = `${
+        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
+      }px`;
       img.style.top = `${
         SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
         (gridSize - 1 - y) * tileSize
       }px`;
-    } else if (x === 0 && y === 2) {
-      img.style.top = `${
-        SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-        (gridSize - y + 0.5) * tileSize -
-        boardWidth / 2
+      img.style.transform = "";
+    } else if (direction === "down") {
+      img.style.left = `${
+        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
       }px`;
-      img.style.left = `${SAFE_MARGIN * (mapEl.clientWidth / MAP_PX)}px`;
-      img.style.transform = "rotate(270deg)";
-      img.style.transformOrigin = "left top";
-    } else if (x === 4 && y === 2) {
-      img.style.top = `${
-        SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-        (gridSize - y + 0.5) * tileSize -
-        boardWidth / 2
-      }px`;
-      img.style.right = `${SAFE_MARGIN * (mapEl.clientWidth / MAP_PX)}px`;
-      img.style.transform = "rotate(90deg)";
-      img.style.transformOrigin = "right top";
-    } else {
       img.style.top = `${
         SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
         (gridSize - 1 - y + 1) * tileSize -
         boardHeight
       }px`;
+      img.style.transform = "";
+    } else if (direction === "left") {
+      img.style.left = `${SAFE_MARGIN * (mapEl.clientWidth / MAP_PX)}px`;
+      img.style.top = `${
+        SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+        (gridSize - y + 0.5) * tileSize -
+        boardWidth / 2
+      }px`;
+      img.style.transform = "rotate(270deg)";
+      img.style.transformOrigin = "left top";
+    } else if (direction === "right") {
+      img.style.left = `${
+        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + (gridSize - 1) * tileSize
+      }px`;
+      img.style.top = `${
+        SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+        (gridSize - y + 0.5) * tileSize -
+        boardWidth / 2
+      }px`;
+      img.style.transform = "rotate(90deg)";
+      img.style.transformOrigin = "right top";
+    } else {
+      // デフォルトはdown
+      img.style.left = `${
+        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
+      }px`;
+      img.style.top = `${
+        SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+        (gridSize - 1 - y + 1) * tileSize -
+        boardHeight
+      }px`;
+      img.style.transform = "";
     }
     img.style.zIndex = 5;
     // チェック画像（未調査なら表示）
@@ -288,7 +293,14 @@ function renderStoneboards() {
     img.addEventListener("click", () => {
       // キャラクターが同じマスにいるときのみ調べられる
       if (position.x === x && position.y === y) {
-        showModal(`img/nazo/${imgName}`, "壁に何か書かれている");
+        if (roomKey === "1,1") {
+          showModal(
+            `img/nazo/${imgName}`,
+            "石板に謎のようなものが書かれている。\n解き明かすと、次の道が開けそうだ。"
+          );
+        } else {
+          showModal(`img/nazo/${imgName}`, "壁に何か書かれている");
+        }
         setCheckedStoneboard(roomKey, x, y);
         renderStoneboards(); // 状態更新
       }
@@ -555,7 +567,8 @@ function renderStands() {
 function showStandModal(roomKey, x, y) {
   // 台座上にアイテムがあるか判定
   const items = standItems[roomKey] || {};
-  const placedItem = items[`${x},${y + 1}`];
+  // 互換対応: 新( x,y ) / 旧( x,y+1 ) どちらでも拾う
+  const placedItem = items[`${x},${y}`] || items[`${x},${y + 1}`];
   if (placedItem) {
     showStandRetrieveModal(roomKey, x, y, placedItem);
     return;
@@ -573,9 +586,17 @@ function renderStandItems() {
   // 現在の部屋のアイテムを描画
   const roomKey = `${room.x},${room.y}`;
   const items = standItems[roomKey] || {};
+  const hasStandAt = (rk, sx, sy) =>
+    (stands[rk] || []).some((s) => s.x === sx && s.y === sy);
   Object.entries(items).forEach(([key, item]) => {
-    const [x, y] = key.split(",").map(Number);
-    addStandItemImage(roomKey, x, y, item);
+    const [x, yStored] = key.split(",").map(Number);
+    // 旧データ(yStoredが台座の一つ上)を新形式(台座座標)に補正して描画
+    const standY = hasStandAt(roomKey, x, yStored)
+      ? yStored
+      : hasStandAt(roomKey, x, yStored - 1)
+      ? yStored - 1
+      : yStored;
+    addStandItemImage(roomKey, x, standY, item);
   });
 }
 
@@ -665,7 +686,12 @@ function showStandRetrieveModal(roomKey, x, y, item) {
 function retrieveStandItem(roomKey, x, y, item) {
   // 台座上のアイテムを削除
   if (standItems[roomKey]) {
-    delete standItems[roomKey][`${x},${y + 1}`];
+    // 新旧どちらのキーでも削除
+    if (standItems[roomKey][`${x},${y}`]) {
+      delete standItems[roomKey][`${x},${y}`];
+    } else if (standItems[roomKey][`${x},${y + 1}`]) {
+      delete standItems[roomKey][`${x},${y + 1}`];
+    }
     saveStandItems();
   }
   // アイテムをカバン（unlocked）に戻す
@@ -688,77 +714,32 @@ function openStandItemSelect(roomKey, standX, standY) {
   // モーダル本体
   const modal = document.createElement("div");
   modal.id = "item-modal";
-  modal.style.position = "fixed";
-  modal.style.top = "0";
-  modal.style.left = "0";
-  modal.style.width = "100vw";
-  modal.style.height = "100vh";
-  modal.style.background = "rgba(0,0,0,0.4)";
-  modal.style.display = "flex";
-  modal.style.alignItems = "center";
-  modal.style.justifyContent = "center";
-  modal.style.zIndex = 3000;
+  modal.className = "item-select-modal";
 
   // パネル
   const panel = document.createElement("div");
-  panel.style.background = "#444";
-  panel.style.borderRadius = "16px";
-  panel.style.padding = "32px 40px";
-  panel.style.display = "flex";
-  panel.style.flexDirection = "row";
-  panel.style.gap = "40px";
-  panel.style.minWidth = "600px";
-  panel.style.maxWidth = "90vw";
-  panel.style.maxHeight = "90vh";
-  panel.style.boxSizing = "border-box";
-  panel.style.position = "relative";
+  panel.className = "item-select-panel";
 
   // 右: アイテム説明
   const descWrap = document.createElement("div");
-  descWrap.style.display = "flex";
-  descWrap.style.flexDirection = "column";
-  descWrap.style.alignItems = "center";
-  descWrap.style.justifyContent = "flex-start";
-  descWrap.style.minWidth = "220px";
-  descWrap.style.maxWidth = "320px";
-  descWrap.style.background = "#333";
-  descWrap.style.borderRadius = "10px";
-  descWrap.style.padding = "24px 18px";
-  descWrap.style.boxSizing = "border-box";
+  descWrap.className = "item-select-desc";
 
   // アイテム名
   const descTitle = document.createElement("div");
-  descTitle.style.fontSize = "1.3rem";
-  descTitle.style.fontWeight = "bold";
-  descTitle.style.color = "#FFD600";
-  descTitle.style.marginBottom = "12px";
+  descTitle.className = "item-select-desc__title";
   descWrap.appendChild(descTitle);
   // アイテム画像
   const descImg = document.createElement("img");
-  descImg.style.width = "64px";
-  descImg.style.height = "64px";
-  descImg.style.marginBottom = "16px";
+  descImg.className = "item-select-desc__img";
   descWrap.appendChild(descImg);
   // アイテム説明
   const descText = document.createElement("div");
-  descText.style.color = "#fff";
-  descText.style.fontSize = "1.1rem";
-  descText.style.textAlign = "center";
-  descText.style.width = "180px";
-  descText.style.wordBreak = "break-word";
+  descText.className = "item-select-desc__text";
   descWrap.appendChild(descText);
 
   // 左: アイテムグリッド
   const grid = document.createElement("div");
-  grid.style.display = "grid";
-  grid.style.gridTemplateColumns = "repeat(3, 72px)";
-  grid.style.gridTemplateRows = "repeat(4, 72px)";
-  grid.style.gap = "18px";
-  grid.style.background = "#222";
-  grid.style.borderRadius = "10px";
-  grid.style.padding = "18px";
-  grid.style.minWidth = "270px";
-  grid.style.alignSelf = "flex-start";
+  grid.className = "item-select-grid";
 
   // unlockedかつ台座に置かれていないアイテムのみ表示
   const placedIds = getPlacedItemIds();
@@ -767,23 +748,12 @@ function openStandItemSelect(roomKey, standX, standY) {
   );
   unlockedItems.forEach((item, idx) => {
     const cell = document.createElement("div");
-    cell.style.width = "72px";
-    cell.style.height = "72px";
-    cell.style.display = "flex";
-    cell.style.alignItems = "center";
-    cell.style.justifyContent = "center";
-    cell.style.background = "#fff";
-    cell.style.border = "2px solid #888";
-    cell.style.borderRadius = "8px";
-    cell.style.cursor = "pointer";
-    cell.style.transition = "border 0.2s";
+    cell.className = "item-select-cell";
     // アイテム画像
     const img = document.createElement("img");
     img.src = item.img;
     img.alt = item.name;
-    img.style.width = "48px";
-    img.style.height = "48px";
-    img.style.opacity = "1";
+    img.className = "item-select-cell__img";
     cell.appendChild(img);
     // 選択時の処理
     cell.addEventListener("click", () => {
@@ -815,24 +785,9 @@ function openStandItemSelect(roomKey, standX, standY) {
   // バツボタン
   const closeBtn = document.createElement("button");
   closeBtn.textContent = "×";
-  closeBtn.style.position = "absolute";
-  closeBtn.style.top = "16px";
-  closeBtn.style.right = "16px";
-  closeBtn.style.width = "40px";
-  closeBtn.style.height = "40px";
-  closeBtn.style.fontSize = "1.7rem";
-  closeBtn.style.background = "#fff";
-  closeBtn.style.border = "2px solid #888";
-  closeBtn.style.borderRadius = "50%";
-  closeBtn.style.cursor = "pointer";
-  closeBtn.style.zIndex = 10;
+  closeBtn.className = "item-select-close";
   closeBtn.addEventListener("click", () => modal.remove());
   panel.appendChild(closeBtn);
-
-  // モーダル外クリックで閉じる
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) modal.remove();
-  });
 
   modal.appendChild(panel);
   document.body.appendChild(modal);
@@ -842,7 +797,8 @@ function openStandItemSelect(roomKey, standX, standY) {
 function showStandPlaceResult(roomKey, standX, standY, item) {
   // standItemsにアイテムを保存
   if (!standItems[roomKey]) standItems[roomKey] = {};
-  standItems[roomKey][`${standX},${standY + 1}`] = item;
+  // 新形式: 台座の座標(standX, standY)で保存
+  standItems[roomKey][`${standX},${standY}`] = item;
   saveStandItems();
   // 台座の一つ上のマスにアイテム画像を表示
   addStandItemImage(roomKey, standX, standY, item);
@@ -1068,21 +1024,21 @@ const itemList = [
     name: "錆びた鉄板",
     img: "img/item/teppan.png",
     desc: "さび付いた鉄板。やすりがあれば磨けそうだ。",
-    unlocked: true,
+    unlocked: false,
   },
   {
     id: "yasuri",
     name: "やすり",
     img: "img/item/yasuri.png",
     desc: "錆びた金属を磨く道具。",
-    unlocked: true,
+    unlocked: false,
   },
   {
     id: "chokinbako",
     name: "貯金箱",
     img: "img/item/chokinbako.png",
     desc: "木でできた貯金箱。中にコインが入っていそうだ。",
-    unlocked: true,
+    unlocked: false,
   },
   {
     id: "mirror",
@@ -1177,77 +1133,32 @@ function showItemModal() {
   // モーダル本体
   const modal = document.createElement("div");
   modal.id = "item-modal";
-  modal.style.position = "fixed";
-  modal.style.top = "0";
-  modal.style.left = "0";
-  modal.style.width = "100vw";
-  modal.style.height = "100vh";
-  modal.style.background = "rgba(0,0,0,0.4)";
-  modal.style.display = "flex";
-  modal.style.alignItems = "center";
-  modal.style.justifyContent = "center";
-  modal.style.zIndex = 3000;
+  modal.className = "inventory-modal";
 
   // パネル
   const panel = document.createElement("div");
-  panel.style.background = "#444";
-  panel.style.borderRadius = "16px";
-  panel.style.padding = "32px 40px";
-  panel.style.display = "flex";
-  panel.style.flexDirection = "row";
-  panel.style.gap = "40px";
-  panel.style.minWidth = "600px";
-  panel.style.maxWidth = "90vw";
-  panel.style.maxHeight = "90vh";
-  panel.style.boxSizing = "border-box";
-  panel.style.position = "relative";
+  panel.className = "inventory-panel";
 
   // 右: アイテム説明
   const descWrap = document.createElement("div");
-  descWrap.style.display = "flex";
-  descWrap.style.flexDirection = "column";
-  descWrap.style.alignItems = "center";
-  descWrap.style.justifyContent = "flex-start";
-  descWrap.style.minWidth = "220px";
-  descWrap.style.maxWidth = "320px";
-  descWrap.style.background = "#333";
-  descWrap.style.borderRadius = "10px";
-  descWrap.style.padding = "24px 18px";
-  descWrap.style.boxSizing = "border-box";
+  descWrap.className = "inventory-desc";
 
   // アイテム名
   const descTitle = document.createElement("div");
-  descTitle.style.fontSize = "1.3rem";
-  descTitle.style.fontWeight = "bold";
-  descTitle.style.color = "#FFD600";
-  descTitle.style.marginBottom = "12px";
+  descTitle.className = "inventory-desc__title";
   descWrap.appendChild(descTitle);
   // アイテム画像
   const descImg = document.createElement("img");
-  descImg.style.width = "64px";
-  descImg.style.height = "64px";
-  descImg.style.marginBottom = "16px";
+  descImg.className = "inventory-desc__img";
   descWrap.appendChild(descImg);
   // アイテム説明
   const descText = document.createElement("div");
-  descText.style.color = "#fff";
-  descText.style.fontSize = "1.1rem";
-  descText.style.textAlign = "center";
-  descText.style.width = "180px";
-  descText.style.wordBreak = "break-word";
+  descText.className = "inventory-desc__text";
   descWrap.appendChild(descText);
 
   // 左: アイテムグリッド
   const grid = document.createElement("div");
-  grid.style.display = "grid";
-  grid.style.gridTemplateColumns = "repeat(3, 72px)";
-  grid.style.gridTemplateRows = "repeat(4, 72px)";
-  grid.style.gap = "18px";
-  grid.style.background = "#222";
-  grid.style.borderRadius = "10px";
-  grid.style.padding = "18px";
-  grid.style.minWidth = "270px";
-  grid.style.alignSelf = "flex-start";
+  grid.className = "inventory-grid";
 
   // アイテム画像を並べる
   let selectedIdx = 0;
@@ -1261,16 +1172,7 @@ function showItemModal() {
   // セルを作成するヘルパー関数
   const createItemCell = (item, idx) => {
     const cell = document.createElement("div");
-    cell.style.width = "72px";
-    cell.style.height = "72px";
-    cell.style.display = "flex";
-    cell.style.alignItems = "center";
-    cell.style.justifyContent = "center";
-    cell.style.background = "#fff";
-    cell.style.border = "2px solid #888";
-    cell.style.borderRadius = "8px";
-    cell.style.cursor = "pointer";
-    cell.style.transition = "border 0.2s";
+    cell.className = "inventory-cell";
     cell.dataset.itemId = item.id;
     cell.dataset.itemIdx = idx;
 
@@ -1278,9 +1180,7 @@ function showItemModal() {
     const img = document.createElement("img");
     img.src = item.img;
     img.alt = item.name;
-    img.style.width = "48px";
-    img.style.height = "48px";
-    img.style.opacity = "1";
+    img.className = "inventory-cell__img";
     cell.appendChild(img);
 
     // ドラッグ可能にする
@@ -1389,24 +1289,9 @@ function showItemModal() {
   // バツボタン
   const closeBtn = document.createElement("button");
   closeBtn.textContent = "×";
-  closeBtn.style.position = "absolute";
-  closeBtn.style.top = "16px";
-  closeBtn.style.right = "16px";
-  closeBtn.style.width = "40px";
-  closeBtn.style.height = "40px";
-  closeBtn.style.fontSize = "1.7rem";
-  closeBtn.style.background = "#fff";
-  closeBtn.style.border = "2px solid #888";
-  closeBtn.style.borderRadius = "50%";
-  closeBtn.style.cursor = "pointer";
-  closeBtn.style.zIndex = 10;
+  closeBtn.className = "inventory-close";
   closeBtn.addEventListener("click", () => modal.remove());
   panel.appendChild(closeBtn);
-
-  // モーダル外クリックで閉じる
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) modal.remove();
-  });
 
   modal.appendChild(panel);
   document.body.appendChild(modal);
@@ -1525,94 +1410,39 @@ function showBoxModal(
   // モーダル本体
   const modal = document.createElement("div");
   modal.id = "box-modal";
-  modal.style.position = "fixed";
-  modal.style.top = "0";
-  modal.style.left = "0";
-  modal.style.width = "100vw";
-  modal.style.height = "100vh";
-  modal.style.background = "rgba(0,0,0,0.4)";
-  modal.style.display = "flex";
-  modal.style.flexDirection = "column";
-  modal.style.alignItems = "center";
-  modal.style.justifyContent = "center";
-  modal.style.zIndex = 2000;
+  modal.className = "box-modal";
 
   // 中央パネル
   const panel = document.createElement("div");
-  panel.style.background = "#444";
-  panel.style.borderRadius = "12px";
-  panel.style.padding = "4vw 4vw 2vw 4vw";
-  panel.style.display = "flex";
-  panel.style.flexDirection = "column";
-  panel.style.alignItems = "center";
-  panel.style.minWidth = "340px";
-  panel.style.maxWidth = "90vw";
-  panel.style.maxHeight = "90vh";
-  panel.style.boxSizing = "border-box";
+  panel.className = "box-modal__panel";
 
   // 問題画像
   const img = document.createElement("img");
   img.src = box?.img || "img/nazo/nazo_1-1-3.png";
   img.alt = "謎画像";
-  img.style.maxWidth = "min(60vw, 600px)";
-  img.style.maxHeight = "40vh";
-  img.style.width = "auto";
-  img.style.height = "auto";
-  img.style.marginBottom = "24px";
-  img.style.borderRadius = "8px";
+  img.className = "box-modal__img";
   panel.appendChild(img);
 
   // 入力欄と送信ボタンを重ねて配置するラッパー
   const inputWrapContainer = document.createElement("div");
-  inputWrapContainer.style.position = "relative";
-  inputWrapContainer.style.display = "inline-block";
-  inputWrapContainer.style.marginBottom = "24px";
+  inputWrapContainer.className = "box-modal__input-wrap-container";
   panel.appendChild(inputWrapContainer);
 
   // 入力欄（画像のみ）
   const inputWrap = document.createElement("div");
-  inputWrap.style.display = "flex";
-  inputWrap.style.alignItems = "center";
-  inputWrap.style.minHeight = "48px";
-  inputWrap.style.background = "#fff";
-  inputWrap.style.borderRadius = "6px";
-  inputWrap.style.padding = "6px 60px 6px 12px"; // 右側にボタン分の余白
-  inputWrap.style.minWidth = "180px";
+  inputWrap.className = "box-modal__input-wrap";
   inputWrap.id = "box-input-wrap";
   inputWrapContainer.appendChild(inputWrap);
 
   // 送信ボタン（黄色の円形、入力欄の右中央に重ねる）
   const sendBtn = document.createElement("button");
   sendBtn.innerHTML = "";
-  sendBtn.style.width = "44px";
-  sendBtn.style.height = "44px";
-  sendBtn.style.borderRadius = "50%";
-  sendBtn.style.background = "#FFD600";
-  sendBtn.style.border = "2px solid #FFC400";
-  sendBtn.style.display = "flex";
-  sendBtn.style.alignItems = "center";
-  sendBtn.style.justifyContent = "center";
-  sendBtn.style.fontSize = "1.5rem";
-  sendBtn.style.fontWeight = "bold";
-  sendBtn.style.cursor = "pointer";
-  sendBtn.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
-  sendBtn.style.outline = "none";
-  sendBtn.style.position = "absolute";
-  sendBtn.style.right = "8px";
-  sendBtn.style.top = "50%";
-  sendBtn.style.transform = "translateY(-50%)";
+  sendBtn.className = "box-modal__send-btn";
   inputWrapContainer.appendChild(sendBtn);
 
   // キーボード
   const keyboard = document.createElement("div");
-  keyboard.style.display = "flex";
-  keyboard.style.flexDirection = "column";
-  keyboard.style.gap = "8px";
-  keyboard.style.background = "#222";
-  keyboard.style.borderRadius = "8px";
-  keyboard.style.padding = "12px 8px";
-  keyboard.style.width = "100%";
-  keyboard.style.alignItems = "center";
+  keyboard.className = "box-modal__keyboard";
 
   // キー配列
   const row1 = ["a", "b", "c", "d", "e", "f", "g", "h"];
@@ -1622,24 +1452,12 @@ function showBoxModal(
     if (key === "delete") {
       // ボタン要素
       const btn = document.createElement("div");
-      btn.style.width = "72px"; // ボタン幅2倍
-      btn.style.height = "36px";
-      btn.style.display = "flex";
-      btn.style.alignItems = "center";
-      btn.style.justifyContent = "center";
-      btn.style.background = "#fff";
-      btn.style.border = "2px solid #000";
-      btn.style.borderRadius = "6px";
-      btn.style.boxSizing = "border-box";
-      btn.style.margin = "0 4px";
-      btn.style.cursor = "pointer";
+      btn.className = "box-modal__key--delete";
       // 画像
       const keyImg = document.createElement("img");
       keyImg.src = "img/moji/delete.png";
       keyImg.alt = "delete";
-      keyImg.style.width = "36px";
-      keyImg.style.height = "36px";
-      keyImg.style.display = "block";
+      keyImg.className = "box-modal__delete-icon";
       btn.appendChild(keyImg);
       btn.addEventListener("click", () => {
         // 最後の画像を消す
@@ -1650,22 +1468,13 @@ function showBoxModal(
       const keyImg = document.createElement("img");
       keyImg.src = `img/moji/moji${key}.png`;
       keyImg.alt = key;
-      keyImg.style.width = "36px";
-      keyImg.style.height = "36px";
-      keyImg.style.margin = "0 4px";
-      keyImg.style.cursor = "pointer";
-      keyImg.style.background = "#fff";
-      keyImg.style.border = "2px solid #000";
-      keyImg.style.borderRadius = "6px";
-      keyImg.style.boxSizing = "border-box";
+      keyImg.className = "box-modal__key";
       keyImg.addEventListener("click", () => {
         // 入力欄に画像を追加
         const moji = document.createElement("img");
         moji.src = `img/moji/moji${key}.png`;
         moji.alt = key;
-        moji.style.width = "36px";
-        moji.style.height = "36px";
-        moji.style.margin = "0 2px";
+        moji.className = "box-modal__moji";
         inputWrap.appendChild(moji);
       });
       return keyImg;
@@ -1673,7 +1482,7 @@ function showBoxModal(
   };
   [row1, row2, row3].forEach((row) => {
     const rowDiv = document.createElement("div");
-    rowDiv.style.display = "flex";
+    rowDiv.className = "box-modal__key-row";
     row.forEach((key) => rowDiv.appendChild(makeKey(key)));
     keyboard.appendChild(rowDiv);
   });
