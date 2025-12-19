@@ -1,15 +1,148 @@
+// --- アイテム入手状態管理 ---
+function saveUnlockedItems() {
+  const unlockedIds = itemList.filter((i) => i.unlocked).map((i) => i.id);
+  localStorage.setItem("unlockedItems", JSON.stringify(unlockedIds));
+}
+function loadUnlockedItems() {
+  try {
+    const unlockedIds = JSON.parse(
+      localStorage.getItem("unlockedItems") || "[]"
+    );
+    itemList.forEach((i) => {
+      i.unlocked = unlockedIds.includes(i.id);
+    });
+  } catch {}
+}
+
+// --- 台座配置状態管理 ---
+function saveStandItems() {
+  localStorage.setItem("standItems", JSON.stringify(standItems));
+}
+function loadStandItems() {
+  try {
+    const data = JSON.parse(localStorage.getItem("standItems") || "{}") || {};
+    standItems = data;
+  } catch {
+    standItems = {};
+  }
+}
+// 共通下部モーダル
+// options: { text, yes, no, close }
+// yes/no: ボタン押下時のコールバック, close: 閉じる時のコールバック
+function showBottomModal(options) {
+  // 既存モーダルがあれば削除
+  let old = document.getElementById("bottom-modal");
+  if (old) old.remove();
+  // モーダル本体
+  const modal = document.createElement("div");
+  modal.id = "bottom-modal";
+  modal.className = "stand-modal";
+  modal.style.position = "fixed";
+  modal.style.left = "0";
+  modal.style.right = "0";
+  modal.style.bottom = "0";
+  modal.style.height = "120px";
+  modal.style.background = "rgba(40,40,40,0.98)";
+  modal.style.display = "flex";
+  modal.style.alignItems = "center";
+  modal.style.justifyContent = "center";
+  modal.style.zIndex = 4000;
+  // パネル
+  const panel = document.createElement("div");
+  panel.style.display = "flex";
+  panel.style.alignItems = "center";
+  panel.style.gap = "32px";
+  // テキスト
+  const text = document.createElement("div");
+  text.textContent = options.text || "";
+  text.style.color = "#fff";
+  text.style.fontSize = "1.2rem";
+  text.style.marginRight = "24px";
+  panel.appendChild(text);
+  // ボタン
+  if (options.yes || options.no) {
+    // はい・いいえ型
+    const yesBtn = document.createElement("button");
+    yesBtn.textContent = "はい";
+    yesBtn.style.marginRight = "12px";
+    yesBtn.style.fontSize = "1.1rem";
+    yesBtn.style.padding = "8px 24px";
+    yesBtn.style.background = "#FFD600";
+    yesBtn.style.border = "1px solid #FFC400";
+    yesBtn.style.borderRadius = "8px";
+    yesBtn.style.cursor = "pointer";
+    yesBtn.addEventListener("click", () => {
+      modal.remove();
+      if (options.yes) options.yes();
+    });
+    const noBtn = document.createElement("button");
+    noBtn.textContent = "いいえ";
+    noBtn.style.fontSize = "1.1rem";
+    noBtn.style.padding = "8px 24px";
+    noBtn.style.background = "#fff";
+    noBtn.style.border = "1px solid #888";
+    noBtn.style.borderRadius = "8px";
+    noBtn.style.cursor = "pointer";
+    noBtn.addEventListener("click", () => {
+      modal.remove();
+      if (options.no) options.no();
+    });
+    panel.appendChild(yesBtn);
+    panel.appendChild(noBtn);
+  } else {
+    // 閉じるだけ型
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "閉じる";
+    closeBtn.style.fontSize = "1.1rem";
+    closeBtn.style.padding = "8px 24px";
+    closeBtn.style.background = "#fff";
+    closeBtn.style.border = "1px solid #888";
+    closeBtn.style.borderRadius = "8px";
+    closeBtn.style.cursor = "pointer";
+    closeBtn.addEventListener("click", () => {
+      modal.remove();
+      if (options.close) options.close();
+    });
+    panel.appendChild(closeBtn);
+  }
+  modal.appendChild(panel);
+  document.body.appendChild(modal);
+}
 // モーダル表示関数
-function showModal(imgSrc, text) {
+// onClose: 閉じた時のコールバック（省略可）
+function showModal(imgSrc, text, onClose) {
   const modal = document.getElementById("modal");
   const modalImg = document.getElementById("modal-img");
   const modalText = document.getElementById("modal-text");
   modalImg.src = imgSrc;
   modalText.textContent = text;
   modal.style.display = "flex";
+
+  // 閉じるボタン
+  const closeBtn = document.getElementById("modal-close");
+  // 既存のイベントを一旦解除
+  const newCloseBtn = closeBtn.cloneNode(true);
+  closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+  newCloseBtn.addEventListener("click", () => {
+    modal.style.display = "none";
+    if (typeof onClose === "function") onClose();
+  });
+
+  // モーダル外クリックで閉じる
+  modal.addEventListener("click", function handler(e) {
+    if (e.target === modal) {
+      modal.style.display = "none";
+      if (typeof onClose === "function") onClose();
+      modal.removeEventListener("click", handler);
+    }
+  });
 }
 
 // モーダル閉じる処理
 window.addEventListener("DOMContentLoaded", () => {
+  // ローカルストレージから状態復元
+  loadUnlockedItems();
+  loadStandItems();
   const modal = document.getElementById("modal");
   const closeBtn = document.getElementById("modal-close");
   closeBtn.addEventListener("click", () => {
@@ -282,10 +415,20 @@ function renderButtons() {
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
   const roomKey = `${room.x},${room.y}`;
   const btns = buttons_data[roomKey] || [];
+  const currentState = magicCircleStates[roomKey];
+  const isLocked = currentState === "red" || currentState === "blue";
   btns.forEach(({ x, y, color }) => {
     const img = document.createElement("img");
-    img.src =
-      color === "red" ? "img/UI/button_red.png" : "img/UI/button_blue.png";
+    // 押せないときは_pushed画像
+    if (isLocked) {
+      img.src =
+        color === "red"
+          ? "img/UI/button_red_pushed.png"
+          : "img/UI/button_blue_pushed.png";
+    } else {
+      img.src =
+        color === "red" ? "img/UI/button_red.png" : "img/UI/button_blue.png";
+    }
     img.alt = color === "red" ? "赤いボタン" : "青いボタン";
     img.className = "button";
     img.style.position = "absolute";
@@ -307,14 +450,17 @@ function renderButtons() {
       }px`;
     };
     img.style.zIndex = 7;
-    img.addEventListener("click", () => {
-      // 隣接マスにいる場合のみ反応
-      const dx = Math.abs(position.x - x);
-      const dy = Math.abs(position.y - y);
-      if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-        showButtonModal(roomKey, x, y, color);
-      }
-    });
+    // 押せるときのみイベント付与
+    if (!isLocked) {
+      img.addEventListener("click", () => {
+        // 隣接マスにいる場合のみ反応
+        const dx = Math.abs(position.x - x);
+        const dy = Math.abs(position.y - y);
+        if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+          showButtonModal(roomKey, x, y, color);
+        }
+      });
+    }
     mapEl.appendChild(img);
     buttonElements.push(img);
   });
@@ -405,6 +551,21 @@ function renderStands() {
 }
 
 // 台座上のアイテムをレンダリング
+// 台座調査モーダル（台座クリック時に呼ばれる）
+function showStandModal(roomKey, x, y) {
+  // 台座上にアイテムがあるか判定
+  const items = standItems[roomKey] || {};
+  const placedItem = items[`${x},${y + 1}`];
+  if (placedItem) {
+    showStandRetrieveModal(roomKey, x, y, placedItem);
+    return;
+  }
+  showBottomModal({
+    text: "台座がある。ものを置きますか？",
+    yes: () => openStandItemSelect(roomKey, x, y),
+    no: () => {},
+  });
+}
 function renderStandItems() {
   // 既存の台座アイテム画像を削除
   const oldItems = document.querySelectorAll(".stand-item-img");
@@ -423,269 +584,99 @@ function showButtonModal(roomKey, x, y, color = "blue") {
   // 既存モーダルがあれば削除
   let old = document.getElementById("button-modal");
   if (old) old.remove();
-
-  // モーダル本体
-  const modal = document.createElement("div");
-  modal.id = "button-modal";
-  modal.style.position = "fixed";
-  modal.style.left = "0";
-  modal.style.right = "0";
-  modal.style.bottom = "0";
-  modal.style.height = "120px";
-  modal.style.background = "rgba(40,40,40,0.98)";
-  modal.style.display = "flex";
-  modal.style.alignItems = "center";
-  modal.style.justifyContent = "center";
-  modal.style.zIndex = 4000;
-  // パネル
-  const panel = document.createElement("div");
-  panel.style.display = "flex";
-  panel.style.alignItems = "center";
-  panel.style.gap = "32px";
-  // テキスト
-  const text = document.createElement("div");
-  text.textContent =
-    color === "red"
-      ? "赤いスイッチがある。押しますか？"
-      : "青いスイッチがある。押しますか？";
-  text.style.color = "#fff";
-  text.style.fontSize = "1.2rem";
-  text.style.marginRight = "24px";
-  panel.appendChild(text);
-  // 「はい」ボタン
-  const yesBtn = document.createElement("button");
-  yesBtn.textContent = "はい";
-  yesBtn.style.marginRight = "12px";
-  yesBtn.style.fontSize = "1.1rem";
-  yesBtn.style.padding = "8px 24px";
-  yesBtn.style.background = "#FFD600";
-  yesBtn.style.border = "1px solid #FFC400";
-  yesBtn.style.borderRadius = "8px";
-  yesBtn.style.cursor = "pointer";
-  // 「いいえ」ボタン
-  const noBtn = document.createElement("button");
-  noBtn.textContent = "いいえ";
-  noBtn.style.fontSize = "1.1rem";
-  noBtn.style.padding = "8px 24px";
-  noBtn.style.background = "#fff";
-  noBtn.style.border = "1px solid #888";
-  noBtn.style.borderRadius = "8px";
-  noBtn.style.cursor = "pointer";
-  // ボタン動作
-  yesBtn.addEventListener("click", () => {
-    // 魔法陣の状態を色に変更し再描画
-    magicCircleStates[roomKey] = color;
-    renderMagicCircles();
-    // 画面下モーダル内でメッセージを表示
-    text.textContent =
+  showBottomModal({
+    text:
       color === "red"
-        ? "円から、燃えるような熱気が放たれている。触れたら焼けてしまいそうだ。"
-        : "円から、凍てつような冷気が放たれている。触れたら凍ってしまいそうだ。";
-    // 操作ボタンを閉じるボタンだけにする
-    yesBtn.remove();
-    noBtn.remove();
-    const closeBtn = document.createElement("button");
-    closeBtn.textContent = "閉じる";
-    closeBtn.style.fontSize = "1.1rem";
-    closeBtn.style.padding = "8px 24px";
-    closeBtn.style.background = "#fff";
-    closeBtn.style.border = "1px solid #888";
-    closeBtn.style.borderRadius = "8px";
-    closeBtn.style.cursor = "pointer";
-    closeBtn.addEventListener("click", () => modal.remove());
-    panel.appendChild(closeBtn);
+        ? "赤いスイッチがある。押しますか？"
+        : "青いスイッチがある。押しますか？",
+    yes: () => {
+      magicCircleStates[roomKey] = color;
+      // 魔法陣が赤/青の間は中央3x3マス進入不可
+      setMagicCircleBlock(roomKey, true);
+      renderMagicCircles();
+      renderButtons();
+      // 5秒後に白に戻す
+      setTimeout(() => {
+        magicCircleStates[roomKey] = "white";
+        setMagicCircleBlock(roomKey, false);
+        renderMagicCircles();
+        renderButtons();
+      }, 5000);
+      // 3,3部屋の中央に貯金箱が置かれている場合の特別演出
+      if (
+        roomKey === "3,3" &&
+        color === "red" &&
+        standItems[roomKey] &&
+        standItems[roomKey]["2,3"] &&
+        standItems[roomKey]["2,3"].id === "chokinbako"
+      ) {
+        // 貯金箱を消し、コインを入手
+        delete standItems[roomKey]["2,3"];
+        unlockItem("coin");
+        renderStandItems();
+        showBottomModal({
+          text: "貯金箱が燃え、中から「コイン」が出てきた！",
+          close: () => {
+            showModal("img/item/coin.png", "「コイン」を手に入れた！");
+          },
+        });
+        return;
+      }
+      showBottomModal({
+        text:
+          color === "red"
+            ? "円ら、燃えるような熱気が放たれている。触れたら焼けてしまいそうだ。"
+            : "円から、凍てつような冷気が放たれている。触れたら凍ってしまいそうだ。",
+      });
+    },
+    no: () => {},
   });
-  noBtn.addEventListener("click", () => {
-    modal.remove();
-  });
-  panel.appendChild(yesBtn);
-  panel.appendChild(noBtn);
-  modal.appendChild(panel);
-  document.body.appendChild(modal);
-}
-
-function showStandModal(roomKey, x, y) {
-  // 台座にアイテムが置かれているかチェック
-  const items = standItems[roomKey] || {};
-  const itemKey = `${x},${y + 1}`;
-  const placedItem = items[itemKey];
-
-  // 既存モーダルがあれば削除
-  let old = document.getElementById("stand-modal");
-  if (old) old.remove();
-
-  // アイテムが置かれている場合
-  if (placedItem) {
-    showStandRetrieveModal(roomKey, x, y, placedItem);
-    return;
+  // 魔法陣の中央3x3マスの進入不可制御
+  function setMagicCircleBlock(roomKey, block) {
+    // 中央3x3マス(x:1-3, y:1-3)
+    if (!blockedTiles[roomKey]) blockedTiles[roomKey] = [];
+    for (let x = 1; x <= 3; x++) {
+      for (let y = 1; y <= 3; y++) {
+        const idx = blockedTiles[roomKey].findIndex(
+          (t) => t.x === x && t.y === y && t.type === "magiccircle"
+        );
+        if (block) {
+          if (idx === -1)
+            blockedTiles[roomKey].push({ x, y, type: "magiccircle" });
+        } else {
+          if (idx !== -1) blockedTiles[roomKey].splice(idx, 1);
+        }
+      }
+    }
   }
-
-  // モーダル本体
-  const modal = document.createElement("div");
-  modal.id = "stand-modal";
-  modal.style.position = "fixed";
-  modal.style.left = "0";
-  modal.style.right = "0";
-  modal.style.bottom = "0";
-  modal.style.height = "120px";
-  modal.style.background = "rgba(40,40,40,0.98)";
-  modal.style.display = "flex";
-  modal.style.alignItems = "center";
-  modal.style.justifyContent = "center";
-  modal.style.zIndex = 4000;
-  // パネル
-  const panel = document.createElement("div");
-  panel.style.display = "flex";
-  panel.style.alignItems = "center";
-  panel.style.gap = "32px";
-  // テキスト
-  const text = document.createElement("div");
-  text.textContent = "台座がある。ものを置きますか？";
-  text.style.color = "#fff";
-  text.style.fontSize = "1.2rem";
-  text.style.marginRight = "24px";
-  panel.appendChild(text);
-  // 「はい」ボタン
-  const yesBtn = document.createElement("button");
-  yesBtn.textContent = "はい";
-  yesBtn.style.marginRight = "12px";
-  yesBtn.style.fontSize = "1.1rem";
-  yesBtn.style.padding = "8px 24px";
-  yesBtn.style.background = "#FFD600";
-  yesBtn.style.border = "1px solid #FFC400";
-  yesBtn.style.borderRadius = "8px";
-  yesBtn.style.cursor = "pointer";
-  // 「いいえ」ボタン
-  const noBtn = document.createElement("button");
-  noBtn.textContent = "いいえ";
-  noBtn.style.fontSize = "1.1rem";
-  noBtn.style.padding = "8px 24px";
-  noBtn.style.background = "#fff";
-  noBtn.style.border = "1px solid #888";
-  noBtn.style.borderRadius = "8px";
-  noBtn.style.cursor = "pointer";
-  // ボタン動作
-  yesBtn.addEventListener("click", () => {
-    modal.remove();
-    openStandItemSelect(roomKey, x, y);
-  });
-
-  noBtn.addEventListener("click", () => modal.remove());
-  panel.appendChild(yesBtn);
-  panel.appendChild(noBtn);
-  modal.appendChild(panel);
-  document.body.appendChild(modal);
 }
 
 // アイテムが置かれている台座を調べた時のモーダル
 function showStandRetrieveModal(roomKey, x, y, item) {
-  // 既存モーダルがあれば削除
-  let old = document.getElementById("stand-modal");
-  if (old) old.remove();
-
-  // モーダル本体
-  const modal = document.createElement("div");
-  modal.id = "stand-modal";
-  modal.style.position = "fixed";
-  modal.style.left = "0";
-  modal.style.right = "0";
-  modal.style.bottom = "0";
-  modal.style.height = "120px";
-  modal.style.background = "rgba(40,40,40,0.98)";
-  modal.style.display = "flex";
-  modal.style.alignItems = "center";
-  modal.style.justifyContent = "center";
-  modal.style.zIndex = 4000;
-
-  // パネル
-  const panel = document.createElement("div");
-  panel.style.display = "flex";
-  panel.style.alignItems = "center";
-  panel.style.gap = "32px";
-
-  // テキスト
-  const text = document.createElement("div");
-  text.textContent = `台座には${item.name}が置かれている。カバンに戻しますか？`;
-  text.style.color = "#fff";
-  text.style.fontSize = "1.2rem";
-  text.style.marginRight = "24px";
-  panel.appendChild(text);
-
-  // 「はい」ボタン
-  const yesBtn = document.createElement("button");
-  yesBtn.textContent = "はい";
-  yesBtn.style.marginRight = "12px";
-  yesBtn.style.fontSize = "1.1rem";
-  yesBtn.style.padding = "8px 24px";
-  yesBtn.style.background = "#FFD600";
-  yesBtn.style.border = "1px solid #FFC400";
-  yesBtn.style.borderRadius = "8px";
-  yesBtn.style.cursor = "pointer";
-
-  // 「いいえ」ボタン
-  const noBtn = document.createElement("button");
-  noBtn.textContent = "いいえ";
-  noBtn.style.fontSize = "1.1rem";
-  noBtn.style.padding = "8px 24px";
-  noBtn.style.background = "#fff";
-  noBtn.style.border = "1px solid #888";
-  noBtn.style.borderRadius = "8px";
-  noBtn.style.cursor = "pointer";
-
-  // ボタン動作
-  yesBtn.addEventListener("click", () => {
-    modal.remove();
-    retrieveStandItem(roomKey, x, y, item);
+  showBottomModal({
+    text: `台座には${item.name}が置かれている。カバンに戻しますか？`,
+    yes: () => retrieveStandItem(roomKey, x, y, item),
+    no: () => {},
   });
-
-  noBtn.addEventListener("click", () => modal.remove());
-
-  panel.appendChild(yesBtn);
-  panel.appendChild(noBtn);
-  modal.appendChild(panel);
-  document.body.appendChild(modal);
 }
 
 // 台座からアイテムを回収
+
 function retrieveStandItem(roomKey, x, y, item) {
-  // standItemsから削除
-  const itemKey = `${x},${y + 1}`;
+  // 台座上のアイテムを削除
   if (standItems[roomKey]) {
-    delete standItems[roomKey][itemKey];
+    delete standItems[roomKey][`${x},${y + 1}`];
+    saveStandItems();
   }
-
-  // 画像を削除
+  // アイテムをカバン（unlocked）に戻す
+  unlockItem(item.id);
+  // UI更新
   renderStandItems();
-
-  // 回収メッセージ表示
-  let old = document.getElementById("stand-modal");
-  if (old) old.remove();
-
-  const modal = document.createElement("div");
-  modal.id = "stand-modal";
-  modal.style.position = "fixed";
-  modal.style.left = "0";
-  modal.style.right = "0";
-  modal.style.bottom = "0";
-  modal.style.height = "100px";
-  modal.style.background = "rgba(40,40,40,0.98)";
-  modal.style.display = "flex";
-  modal.style.alignItems = "center";
-  modal.style.justifyContent = "center";
-  modal.style.zIndex = 4000;
-
-  const text = document.createElement("div");
-  text.textContent = `${item.name}を回収した`;
-  text.style.color = "#FFD600";
-  text.style.fontSize = "1.2rem";
-  text.style.fontWeight = "bold";
-  modal.appendChild(text);
-  document.body.appendChild(modal);
-
-  // 数秒後に自動で消す
-  setTimeout(() => {
-    if (modal.parentNode) modal.remove();
-  }, 2000);
+  // 回収メッセージ
+  showBottomModal({
+    text: `${item.name}をカバンに戻した。`,
+    close: () => {},
+  });
 }
 
 // 台座用アイテム選択画面
@@ -852,36 +843,14 @@ function showStandPlaceResult(roomKey, standX, standY, item) {
   // standItemsにアイテムを保存
   if (!standItems[roomKey]) standItems[roomKey] = {};
   standItems[roomKey][`${standX},${standY + 1}`] = item;
-  // 既存モーダルがあれば削除
-  let old = document.getElementById("stand-modal");
-  if (old) old.remove();
-  // モーダル本体
-  const modal = document.createElement("div");
-  modal.id = "stand-modal";
-  modal.style.position = "fixed";
-  modal.style.left = "0";
-  modal.style.right = "0";
-  modal.style.bottom = "0";
-  modal.style.height = "100px";
-  modal.style.background = "rgba(40,40,40,0.98)";
-  modal.style.display = "flex";
-  modal.style.alignItems = "center";
-  modal.style.justifyContent = "center";
-  modal.style.zIndex = 4000;
-  // テキスト
-  const text = document.createElement("div");
-  text.textContent = `台座に${item.name}を置いた！`;
-  text.style.color = "#FFD600";
-  text.style.fontSize = "1.2rem";
-  text.style.fontWeight = "bold";
-  modal.appendChild(text);
-  document.body.appendChild(modal);
+  saveStandItems();
   // 台座の一つ上のマスにアイテム画像を表示
   addStandItemImage(roomKey, standX, standY, item);
-  // 数秒後に自動で消す
-  setTimeout(() => {
-    if (modal.parentNode) modal.remove();
-  }, 2000);
+  // showBottomModalでメッセージ表示（2秒後に自動で閉じる）
+  showBottomModal({
+    text: `台座に${item.name}を置いた！`,
+    close: () => {},
+  });
 }
 
 // 台座上にアイテム画像を表示
@@ -929,6 +898,27 @@ const boxes = {
   "2,0": [{ x: 2, y: 0, img: "img/nazo/nazo_1-1-23.png", answer: "cjlm" }],
 };
 
+// --- 宝箱開封状態管理 ---
+function getOpenedBoxes() {
+  try {
+    return JSON.parse(localStorage.getItem("openedBoxes") || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+function setOpenedBox(roomKey, x, y) {
+  const opened = getOpenedBoxes();
+  if (!opened[roomKey]) opened[roomKey] = [];
+  if (!opened[roomKey].some((b) => b.x === x && b.y === y)) {
+    opened[roomKey].push({ x, y });
+    localStorage.setItem("openedBoxes", JSON.stringify(opened));
+  }
+}
+function isOpenedBox(roomKey, x, y) {
+  const opened = getOpenedBoxes();
+  return opened[roomKey] && opened[roomKey].some((b) => b.x === x && b.y === y);
+}
+
 function renderBoxes() {
   // 既存の宝箱imgを削除
   const oldBoxes = document.querySelectorAll(".box");
@@ -938,9 +928,10 @@ function renderBoxes() {
   const roomKey = `${room.x},${room.y}`;
   const list = boxes[roomKey] || [];
   list.forEach(({ x, y }) => {
+    const opened = isOpenedBox(roomKey, x, y);
     const img = document.createElement("img");
-    img.src = "img/UI/box.png";
-    img.alt = "宝箱";
+    img.src = opened ? "img/UI/box_opened.png" : "img/UI/box.png";
+    img.alt = opened ? "開いた宝箱" : "宝箱";
     img.className = "box";
     img.style.position = "absolute";
     img.style.left = `${
@@ -953,14 +944,20 @@ function renderBoxes() {
     img.style.width = `${tileSize}px`;
     img.style.height = "auto";
     img.style.zIndex = 8;
-    img.addEventListener("click", () => {
-      // 隣接マスにいる場合のみ反応
-      const dx = Math.abs(position.x - x);
-      const dy = Math.abs(position.y - y);
-      if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-        showBoxModal(roomKey, x, y);
-      }
-    });
+    if (!opened) {
+      img.style.cursor = "pointer";
+      img.addEventListener("click", () => {
+        // 隣接マスにいる場合のみ反応
+        const dx = Math.abs(position.x - x);
+        const dy = Math.abs(position.y - y);
+        if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+          showBoxModal(roomKey, x, y);
+        }
+      });
+    } else {
+      img.style.opacity = "0.7";
+      img.style.cursor = "default";
+    }
     mapEl.appendChild(img);
   });
 }
@@ -1000,11 +997,26 @@ Object.keys(buttons_data).forEach((roomKey) => {
   });
 });
 
-// --- 石板調査状態リセット用 ---
 function reset() {
   localStorage.removeItem("checkedStoneboards");
+  localStorage.removeItem("openedBoxes");
+  localStorage.removeItem("unlockedItems");
+  localStorage.removeItem("standItems");
+  // 初期化
+  itemList.forEach((i) => {
+    i.unlocked = false;
+  });
+  standItems = {};
   renderStoneboards();
-  console.log("石板調査状態をリセットしました。");
+  renderBoxes();
+  renderStands();
+  renderStandItems();
+  saveUnlockedItems();
+  saveStandItems();
+  console.log("石板調査状態・宝箱・アイテム・台座配置をリセットしました。");
+  // ローカルストレージから状態復元
+  loadUnlockedItems();
+  loadStandItems();
 }
 window.reset = reset;
 
@@ -1070,7 +1082,7 @@ const itemList = [
     name: "貯金箱",
     img: "img/item/chokinbako.png",
     desc: "木でできた貯金箱。中にコインが入っていそうだ。",
-    unlocked: false,
+    unlocked: true,
   },
   {
     id: "mirror",
@@ -1120,13 +1132,19 @@ function getCombinationResult(itemId1, itemId2) {
 // アイテム解放関数
 function unlockItem(id) {
   const item = itemList.find((i) => i.id === id);
-  if (item) item.unlocked = true;
+  if (item && !item.unlocked) {
+    item.unlocked = true;
+    saveUnlockedItems();
+  }
 }
 
 // アイテム削除関数
 function removeItem(id) {
   const item = itemList.find((i) => i.id === id);
-  if (item) item.unlocked = false;
+  if (item && item.unlocked) {
+    item.unlocked = false;
+    saveUnlockedItems();
+  }
 }
 
 // アイテム合成処理
@@ -1144,30 +1162,10 @@ function performCombination(result, itemId1, itemId2) {
 
 // 合成完了メッセージ表示
 function showCombinationMessage(message, resultItemId) {
-  const modal = document.createElement("div");
-  modal.style.position = "fixed";
-  modal.style.left = "0";
-  modal.style.right = "0";
-  modal.style.bottom = "0";
-  modal.style.height = "100px";
-  modal.style.background = "rgba(40,40,40,0.98)";
-  modal.style.display = "flex";
-  modal.style.alignItems = "center";
-  modal.style.justifyContent = "center";
-  modal.style.zIndex = 4000;
-
-  const text = document.createElement("div");
-  text.textContent = message;
-  text.style.color = "#FFD600";
-  text.style.fontSize = "1.2rem";
-  text.style.fontWeight = "bold";
-  modal.appendChild(text);
-  document.body.appendChild(modal);
-
-  // 数秒後に自動で消す
-  setTimeout(() => {
-    if (modal.parentNode) modal.remove();
-  }, 2000);
+  showBottomModal({
+    text: message,
+    close: () => {},
+  });
 }
 
 // アイテム画面モーダル表示関数
@@ -1694,36 +1692,36 @@ function showBoxModal(
     // 現在の部屋・宝箱の正解を取得
     const correct = box?.answer || "";
     // 正解時のアイテム解放処理
-    if (answer === correct && roomKey === "2,4") {
-      unlockItem("tsubo");
-      showModal(
-        "img/item/tsubo.png",
-        "宝箱が開いた！\n中から「水瓶」を手に入れた！"
-      );
-      modal.remove();
-    } else if (answer === correct && roomKey === "0,2") {
-      unlockItem("teppan");
-      showModal(
-        "img/item/teppan.png",
-        "宝箱が開いた！\n中から「錆びた鉄板」を手に入れた！"
-      );
-      modal.remove();
-    } else if (answer === correct && roomKey === "4,2") {
-      unlockItem("yasuri");
-      showModal(
-        "img/item/yasuri.png",
-        "宝箱が開いた！\n中から「やすり」を手に入れた！"
-      );
-      modal.remove();
-    } else if (answer === correct && roomKey === "2,0") {
-      unlockItem("chokinbako");
-      showModal(
-        "img/item/chokinbako.png",
-        "宝箱が開いた！\n中から「貯金箱」を手に入れた！"
-      );
-      modal.remove();
-    } else if (answer === correct) {
-      alert("正解！");
+    if (answer === correct) {
+      setOpenedBox(roomKey, boxX, boxY);
+      renderBoxes();
+      if (roomKey === "2,4") {
+        unlockItem("tsubo");
+        showModal(
+          "img/item/tsubo.png",
+          "宝箱が開いた！\n中から「水瓶」を手に入れた！"
+        );
+      } else if (roomKey === "0,2") {
+        unlockItem("teppan");
+        showModal(
+          "img/item/teppan.png",
+          "宝箱が開いた！\n中から「錆びた鉄板」を手に入れた！"
+        );
+      } else if (roomKey === "4,2") {
+        unlockItem("yasuri");
+        showModal(
+          "img/item/yasuri.png",
+          "宝箱が開いた！\n中から「やすり」を手に入れた！"
+        );
+      } else if (roomKey === "2,0") {
+        unlockItem("chokinbako");
+        showModal(
+          "img/item/chokinbako.png",
+          "宝箱が開いた！\n中から「貯金箱」を手に入れた！"
+        );
+      } else {
+        alert("正解！");
+      }
       modal.remove();
     } else {
       alert("どうやら答えが違うようだ。");
