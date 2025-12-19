@@ -9,7 +9,10 @@ function loadUnlockedItems() {
       localStorage.getItem("unlockedItems") || "[]"
     );
     itemList.forEach((i) => {
-      i.unlocked = unlockedIds.includes(i.id);
+      // 初期値がtrueのアイテムは上書きしない（初期解放アイテム対応）
+      if (!i.unlocked) {
+        i.unlocked = unlockedIds.includes(i.id);
+      }
     });
   } catch {}
 }
@@ -152,37 +155,113 @@ const MAP_PX = 340;
 const SAFE_MARGIN = 20; // 端から削る領域(px)
 const PLAYABLE_PX = MAP_PX - SAFE_MARGIN * 2; // 300
 
+// フロアごとのグリッドサイズ定義
+const floorGridSizes = {
+  1: 5, // 1F: 5x5
+  2: 3, // 2F: 3x3
+};
+
 // キャラクターの現在位置（マス座標）
 const position = { x: 2, y: 2 };
-// 現在の部屋座標（5x5の部屋グリッド、左下が(0,0)）
-const roomGridSize = 5;
-const room = { x: 1, y: 1 };
-// 通過した部屋を記録
-const visitedRooms = Array.from({ length: roomGridSize }, () =>
-  Array(roomGridSize).fill(false)
-);
-visitedRooms[room.y][room.x] = true;
+// 現在の部屋座標
+const room = { x: 1, y: 1, floor: 1, mapnum: 1 };
+
+// 現在のフロアのグリッドサイズを取得
+function getRoomGridSize(floor = room.floor) {
+  return floorGridSizes[floor] || 5;
+}
+
+// 部屋キー生成ヘルパー関数
+function getRoomKey(
+  x = room.x,
+  y = room.y,
+  floor = room.floor,
+  mapnum = room.mapnum
+) {
+  return `${x},${y},${floor},${mapnum}`;
+}
+
+// 通過した部屋を記録 (4次元: [mapnum][floor][y][x])
+const visitedRooms = {};
+// 初期位置を記録
+if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
+if (!visitedRooms[room.mapnum][room.floor])
+  visitedRooms[room.mapnum][room.floor] = Array.from(
+    { length: getRoomGridSize(room.floor) },
+    () => Array(getRoomGridSize(room.floor)).fill(false)
+  );
+visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
 
 const mapEl = document.getElementById("map");
 const characterEl = document.getElementById("character");
 const buttons = document.querySelectorAll(".dpad__btn");
 
+// ハシゴ出現フラグ
+let isLadderVisible = false;
+
 // 石板配置データ: { [roomKey]: [{ x, y, img }] }
+// roomKey形式: "x,y,floor,mapnum"
 const stoneboards = {
   // direction: down(下端), up(上端), right(右寄せ90度), left(左寄せ90度)
-  "1,0": [{ x: 2, y: 0, img: "nazo_1-1-22.png", direction: "down" }],
-  "3,0": [{ x: 2, y: 0, img: "nazo_1-1-24.png", direction: "down" }],
-  "1,4": [{ x: 2, y: 4, img: "nazo_1-1-2.png", direction: "up" }],
-  "3,4": [{ x: 2, y: 4, img: "nazo_1-1-4.png", direction: "up" }],
-  "0,1": [{ x: 0, y: 2, img: "nazo_1-1-16.png", direction: "left" }],
-  "0,3": [{ x: 0, y: 2, img: "nazo_1-1-6.png", direction: "left" }],
-  "4,1": [{ x: 4, y: 2, img: "nazo_1-1-20.png", direction: "right" }],
-  "4,3": [{ x: 4, y: 2, img: "nazo_1-1-10.png", direction: "right" }],
-  "1,1": [{ x: 4, y: 4, img: "nazo_1-1-17.png", direction: "right" }],
+  "1,0,1,1": [{ x: 2, y: 0, img: "nazo_1-1-22.png", direction: "down" }],
+  "3,0,1,1": [{ x: 2, y: 0, img: "nazo_1-1-24.png", direction: "down" }],
+  "1,4,1,1": [{ x: 2, y: 4, img: "nazo_1-1-2.png", direction: "up" }],
+  "3,4,1,1": [{ x: 2, y: 4, img: "nazo_1-1-4.png", direction: "up" }],
+  "0,1,1,1": [{ x: 0, y: 2, img: "nazo_1-1-16.png", direction: "left" }],
+  "0,3,1,1": [{ x: 0, y: 2, img: "nazo_1-1-6.png", direction: "left" }],
+  "4,1,1,1": [{ x: 4, y: 2, img: "nazo_1-1-20.png", direction: "right" }],
+  "4,3,1,1": [{ x: 4, y: 2, img: "nazo_1-1-10.png", direction: "right" }],
+  "1,1,1,1": [{ x: 4, y: 4, img: "nazo_1-1-17.png", direction: "right" }],
 };
 
 // 石板img要素を管理
 let stoneboardElements = [];
+
+// ハシゴ描画
+function renderLadder() {
+  // 既存のハシゴを削除
+  const oldLadder = document.querySelector(".ladder");
+  if (oldLadder) oldLadder.remove();
+
+  // ハシゴが出現していない、または部屋が"1,1,1,1"でない場合は何もしない
+  const roomKey = getRoomKey();
+  if (!isLadderVisible || roomKey !== "1,1,1,1") return;
+
+  const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
+  const ladderX = 2;
+  const ladderY = 2;
+
+  const img = document.createElement("img");
+  img.src = "img/UI/ladder.png";
+  img.alt = "ハシゴ";
+  img.className = "ladder";
+  img.style.position = "absolute";
+  img.style.height = `${tileSize}px`;
+  img.style.width = "auto";
+
+  // 上下中央揃え
+  img.style.top = `${
+    SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+    (gridSize - 1 - ladderY) * tileSize
+  }px`;
+
+  // 左右中央揃え（画像読み込み後に調整）
+  img.onload = function () {
+    img.style.left = `${
+      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) +
+      ladderX * tileSize +
+      (tileSize - img.offsetWidth) / 2
+    }px`;
+  };
+
+  img.style.zIndex = 6;
+  mapEl.appendChild(img);
+
+  // 既に読み込まれている場合は即座に調整
+  if (img.complete) {
+    img.onload();
+  }
+}
 // 石板調査済み状態をlocalStorageで管理
 function getCheckedStoneboards() {
   return JSON.parse(localStorage.getItem("checkedStoneboards") || "{}");
@@ -204,7 +283,7 @@ function renderStoneboards() {
   stoneboardElements = [];
   // 現在の部屋に石板があれば描画
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
-  const roomKey = `${room.x},${room.y}`;
+  const roomKey = getRoomKey();
   const boards = stoneboards[roomKey] || [];
   boards.forEach(({ x, y, img: imgName, direction }) => {
     const img = document.createElement("img");
@@ -293,7 +372,7 @@ function renderStoneboards() {
     img.addEventListener("click", () => {
       // キャラクターが同じマスにいるときのみ調べられる
       if (position.x === x && position.y === y) {
-        if (roomKey === "1,1") {
+        if (roomKey === "1,1,1,1") {
           showModal(
             `img/nazo/${imgName}`,
             "石板に謎のようなものが書かれている。\n解き明かすと、次の道が開けそうだ。"
@@ -313,8 +392,8 @@ function renderStoneboards() {
 // 特別な魔法陣（白）配置データ: { [roomKey]: [{ x, y, width, height }] }
 // width, heightはマス単位
 const magicCircles = {
-  "1,3": [{ x: 2, y: 2, width: 3, height: 3, state: "white" }],
-  "3,3": [{ x: 2, y: 2, width: 3, height: 3, state: "white" }],
+  "1,3,1,1": [{ x: 2, y: 2, width: 3, height: 3, state: "white" }],
+  "3,3,1,1": [{ x: 2, y: 2, width: 3, height: 3, state: "white" }],
 };
 
 // 魔法陣の状態を管理（roomKey -> state）
@@ -325,8 +404,8 @@ let magicCircleElements = [];
 
 // ボタン配置データ: { [roomKey]: [{ x, y }] }
 const buttons_data = {
-  "1,3": [{ x: 4, y: 0, color: "blue" }],
-  "3,3": [{ x: 4, y: 0, color: "red" }],
+  "1,3,1,1": [{ x: 4, y: 0, color: "blue" }],
+  "3,3,1,1": [{ x: 4, y: 0, color: "red" }],
 };
 
 // ボタンimg要素を管理
@@ -334,17 +413,17 @@ let buttonElements = [];
 
 // 普通の魔法陣（mahoujin.png）配置データ
 const normalMagicCircles = {
-  "0,0": [{ width: 3, height: 3 }],
-  "0,2": [{ width: 3, height: 3 }],
-  "0,4": [{ width: 3, height: 3 }],
-  "1,1": [{ width: 3, height: 3 }],
-  "1,3": [{ width: 3, height: 3 }],
-  "2,0": [{ width: 3, height: 3 }],
-  "2,2": [{ width: 3, height: 3 }],
-  "2,4": [{ width: 3, height: 3 }],
-  "4,0": [{ width: 3, height: 3 }],
-  "4,2": [{ width: 3, height: 3 }],
-  "4,4": [{ width: 3, height: 3 }],
+  "0,0,1,1": [{ width: 3, height: 3 }],
+  "0,2,1,1": [{ width: 3, height: 3 }],
+  "0,4,1,1": [{ width: 3, height: 3 }],
+  "1,1,1,1": [{ width: 3, height: 3 }],
+  "1,3,1,1": [{ width: 3, height: 3 }],
+  "2,0,1,1": [{ width: 3, height: 3 }],
+  "2,2,1,1": [{ width: 3, height: 3 }],
+  "2,4,1,1": [{ width: 3, height: 3 }],
+  "4,0,1,1": [{ width: 3, height: 3 }],
+  "4,2,1,1": [{ width: 3, height: 3 }],
+  "4,4,1,1": [{ width: 3, height: 3 }],
 };
 
 // 普通の魔法陣img要素を管理
@@ -356,7 +435,7 @@ function renderMagicCircles() {
   magicCircleElements = [];
   // 現在の部屋に魔法陣があれば描画
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
-  const roomKey = `${room.x},${room.y}`;
+  const roomKey = getRoomKey();
   const circles = magicCircles[roomKey] || [];
   circles.forEach(({ x, y, width, height, state: defaultState }) => {
     const img = document.createElement("img");
@@ -393,7 +472,7 @@ function renderNormalMagicCircles() {
   normalMagicCircleElements = [];
   // 現在の部屋に魔法陣があれば描画
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
-  const roomKey = `${room.x},${room.y}`;
+  const roomKey = getRoomKey();
   const circles = normalMagicCircles[roomKey] || [];
   circles.forEach(({ width, height }) => {
     const img = document.createElement("img");
@@ -425,7 +504,7 @@ function renderButtons() {
   buttonElements = [];
   // 現在の部屋にボタンがあれば描画
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
-  const roomKey = `${room.x},${room.y}`;
+  const roomKey = getRoomKey();
   const btns = buttons_data[roomKey] || [];
   const currentState = magicCircleStates[roomKey];
   const isLocked = currentState === "red" || currentState === "blue";
@@ -480,19 +559,19 @@ function renderButtons() {
 
 // 台座配置データ: { [roomKey]: [{ x, y }] }
 const stands = {
-  "0,0": [{ x: 0, y: 0 }],
-  "2,0": [{ x: 0, y: 0 }],
-  "4,0": [{ x: 0, y: 0 }],
-  "1,1": [{ x: 0, y: 0 }],
-  "3,1": [{ x: 0, y: 0 }],
-  "0,2": [{ x: 0, y: 0 }],
-  "2,2": [{ x: 0, y: 0 }],
-  "4,2": [{ x: 0, y: 0 }],
-  "1,3": [{ x: 2, y: 2 }],
-  "3,3": [{ x: 2, y: 2 }],
-  "0,4": [{ x: 0, y: 0 }],
-  "2,4": [{ x: 0, y: 0 }],
-  "4,4": [{ x: 0, y: 0 }],
+  "0,0,1,1": [{ x: 0, y: 0 }],
+  "2,0,1,1": [{ x: 0, y: 0 }],
+  "4,0,1,1": [{ x: 0, y: 0 }],
+  "1,1,1,1": [{ x: 0, y: 0 }],
+  "3,1,1,1": [{ x: 0, y: 0 }],
+  "0,2,1,1": [{ x: 0, y: 0 }],
+  "2,2,1,1": [{ x: 0, y: 0 }],
+  "4,2,1,1": [{ x: 0, y: 0 }],
+  "1,3,1,1": [{ x: 2, y: 2 }],
+  "3,3,1,1": [{ x: 2, y: 2 }],
+  "0,4,1,1": [{ x: 0, y: 0 }],
+  "2,4,1,1": [{ x: 0, y: 0 }],
+  "4,4,1,1": [{ x: 0, y: 0 }],
 };
 
 // 台座に置かれたアイテム: { [roomKey]: { [x,y]: item } }
@@ -517,7 +596,7 @@ function renderStands() {
   oldStands.forEach((el) => el.remove());
   // 現在の部屋に台座があれば描画
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
-  const roomKey = `${room.x},${room.y}`;
+  const roomKey = getRoomKey();
   const list = stands[roomKey] || [];
   list.forEach(({ x, y }) => {
     const img = document.createElement("img");
@@ -584,7 +663,7 @@ function renderStandItems() {
   const oldItems = document.querySelectorAll(".stand-item-img");
   oldItems.forEach((el) => el.remove());
   // 現在の部屋のアイテムを描画
-  const roomKey = `${room.x},${room.y}`;
+  const roomKey = getRoomKey();
   const items = standItems[roomKey] || {};
   const hasStandAt = (rk, sx, sy) =>
     (stands[rk] || []).some((s) => s.x === sx && s.y === sy);
@@ -625,7 +704,7 @@ function showButtonModal(roomKey, x, y, color = "blue") {
       }, 5000);
       // 3,3部屋の中央に貯金箱が置かれている場合の特別演出
       if (
-        roomKey === "3,3" &&
+        roomKey === "3,3,1,1" &&
         color === "red" &&
         standItems[roomKey] &&
         standItems[roomKey]["2,3"] &&
@@ -802,10 +881,34 @@ function showStandPlaceResult(roomKey, standX, standY, item) {
   saveStandItems();
   // 台座の一つ上のマスにアイテム画像を表示
   addStandItemImage(roomKey, standX, standY, item);
-  // showBottomModalでメッセージ表示（2秒後に自動で閉じる）
+
+  // 特定条件チェック: "2,2,1,1"にコイン、"3,1,1,1"に鏡
+  const checkSpecialCondition = () => {
+    const hasCoinAt22 =
+      standItems["2,2,1,1"] &&
+      Object.values(standItems["2,2,1,1"]).some((i) => i.id === "coin");
+    const hasMirrorAt31 =
+      standItems["3,1,1,1"] &&
+      Object.values(standItems["3,1,1,1"]).some((i) => i.id === "mirror");
+    return hasCoinAt22 && hasMirrorAt31;
+  };
+
+  // showBottomModalでメッセージ表示
   showBottomModal({
     text: `台座に${item.name}を置いた！`,
-    close: () => {},
+    close: () => {
+      // 条件達成時に追加メッセージ
+      if (checkSpecialCondition()) {
+        // ハシゴを出現させる
+        isLadderVisible = true;
+        renderLadder();
+
+        showBottomModal({
+          text: "どこかで何かが変化したようだ",
+          close: () => {},
+        });
+      }
+    },
   });
 }
 
@@ -848,10 +951,10 @@ function addStandItemImage(roomKey, standX, standY, item) {
 
 // 宝箱配置データ: { [roomKey]: [{ x, y, img, answer }] }
 const boxes = {
-  "2,4": [{ x: 2, y: 4, img: "img/nazo/nazo_1-1-3.png", answer: "cbtf" }],
-  "0,2": [{ x: 0, y: 2, img: "img/nazo/nazo_1-1-11.png", answer: "cgsj" }],
-  "4,2": [{ x: 4, y: 2, img: "img/nazo/nazo_1-1-15.png", answer: "cjkf" }],
-  "2,0": [{ x: 2, y: 0, img: "img/nazo/nazo_1-1-23.png", answer: "cjlm" }],
+  "2,4,1,1": [{ x: 2, y: 4, img: "img/nazo/nazo_1-1-3.png", answer: "cbtf" }],
+  "0,2,1,1": [{ x: 0, y: 2, img: "img/nazo/nazo_1-1-11.png", answer: "cgsj" }],
+  "4,2,1,1": [{ x: 4, y: 2, img: "img/nazo/nazo_1-1-15.png", answer: "cjkf" }],
+  "2,0,1,1": [{ x: 2, y: 0, img: "img/nazo/nazo_1-1-23.png", answer: "cjlm" }],
 };
 
 // --- 宝箱開封状態管理 ---
@@ -881,7 +984,7 @@ function renderBoxes() {
   oldBoxes.forEach((el) => el.remove());
   // 現在の部屋に宝箱があれば描画
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
-  const roomKey = `${room.x},${room.y}`;
+  const roomKey = getRoomKey();
   const list = boxes[roomKey] || [];
   list.forEach(({ x, y }) => {
     const opened = isOpenedBox(roomKey, x, y);
@@ -956,23 +1059,36 @@ Object.keys(buttons_data).forEach((roomKey) => {
 function reset() {
   localStorage.removeItem("checkedStoneboards");
   localStorage.removeItem("openedBoxes");
-  localStorage.removeItem("unlockedItems");
   localStorage.removeItem("standItems");
-  // 初期化
-  itemList.forEach((i) => {
-    i.unlocked = false;
+
+  // itemListの初期値を取得するため、スクリプト読み込み時の初期状態を復元
+  // 一時的にlocalStorageを削除してから、itemListの現在の状態（コードで定義された初期値）を保存
+  const initialUnlocked = {};
+  itemList.forEach((item) => {
+    initialUnlocked[item.id] = item.unlocked;
   });
+
+  // localStorageをクリア
+  localStorage.removeItem("unlockedItems");
+
+  // itemListを初期状態に戻す（コードで定義されたunlocked値を使う）
+  itemList.forEach((item) => {
+    item.unlocked = initialUnlocked[item.id] || false;
+  });
+
   standItems = {};
+
+  // 初期状態をlocalStorageに保存
+  saveUnlockedItems();
+  saveStandItems();
+
+  // UI更新
   renderStoneboards();
   renderBoxes();
   renderStands();
   renderStandItems();
-  saveUnlockedItems();
-  saveStandItems();
+
   console.log("石板調査状態・宝箱・アイテム・台座配置をリセットしました。");
-  // ローカルストレージから状態復元
-  loadUnlockedItems();
-  loadStandItems();
 }
 window.reset = reset;
 
@@ -1010,7 +1126,7 @@ const itemList = [
     name: "コイン",
     img: "img/item/coin.png",
     desc: "金色のコイン。そこまで価値は高くなさそうだ。",
-    unlocked: false, // 初期は未解放
+    unlocked: true, // 初期は未解放
   },
   {
     id: "tsubo",
@@ -1038,14 +1154,14 @@ const itemList = [
     name: "貯金箱",
     img: "img/item/chokinbako.png",
     desc: "木でできた貯金箱。中にコインが入っていそうだ。",
-    unlocked: false,
+    unlocked: true,
   },
   {
     id: "mirror",
     name: "鏡",
     img: "img/item/mirror.png",
     desc: "ピカピカの鏡。",
-    unlocked: false,
+    unlocked: true,
   },
   // ここに新しいアイテムを追加可能
 ];
@@ -1345,12 +1461,23 @@ function render() {
   function renderMinimap() {
     const minimap = document.getElementById("minimap");
     minimap.innerHTML = "";
+    // 現在のmapnumとfloorのデータを取得
+    const currentGridSize = getRoomGridSize(room.floor);
+    // ミニマップのグリッドサイズを動的に設定
+    minimap.style.gridTemplateColumns = `repeat(${currentGridSize}, 18px)`;
+    minimap.style.gridTemplateRows = `repeat(${currentGridSize}, 18px)`;
+    const currentFloorData =
+      visitedRooms[room.mapnum]?.[room.floor] ||
+      Array.from({ length: currentGridSize }, () =>
+        Array(currentGridSize).fill(false)
+      );
     // y=0が下、yが大きいほど上になるよう逆順で描画
-    for (let y = roomGridSize - 1; y >= 0; y--) {
-      for (let x = 0; x < roomGridSize; x++) {
+    for (let y = currentGridSize - 1; y >= 0; y--) {
+      for (let x = 0; x < currentGridSize; x++) {
         const cell = document.createElement("div");
         cell.className = "minimap__cell";
-        if (visitedRooms[y][x]) cell.classList.add("minimap__cell--visited");
+        if (currentFloorData[y][x])
+          cell.classList.add("minimap__cell--visited");
         if (room.x === x && room.y === y)
           cell.classList.add("minimap__cell--current");
         minimap.appendChild(cell);
@@ -1365,10 +1492,11 @@ function render() {
   // renderStands();
   // renderBoxes();
   // どの方向に隣接部屋があるか判定
-  const up = room.y < roomGridSize - 1;
+  const currentGridSize = getRoomGridSize();
+  const up = room.y < currentGridSize - 1;
   const down = room.y > 0;
   const left = room.x > 0;
-  const right = room.x < roomGridSize - 1;
+  const right = room.x < currentGridSize - 1;
   let key = "";
   if (up) key += "u";
   if (down) key += "d";
@@ -1504,25 +1632,25 @@ function showBoxModal(
     if (answer === correct) {
       setOpenedBox(roomKey, boxX, boxY);
       renderBoxes();
-      if (roomKey === "2,4") {
+      if (roomKey === "2,4,1,1") {
         unlockItem("tsubo");
         showModal(
           "img/item/tsubo.png",
           "宝箱が開いた！\n中から「水瓶」を手に入れた！"
         );
-      } else if (roomKey === "0,2") {
+      } else if (roomKey === "0,2,1,1") {
         unlockItem("teppan");
         showModal(
           "img/item/teppan.png",
           "宝箱が開いた！\n中から「錆びた鉄板」を手に入れた！"
         );
-      } else if (roomKey === "4,2") {
+      } else if (roomKey === "4,2,1,1") {
         unlockItem("yasuri");
         showModal(
           "img/item/yasuri.png",
           "宝箱が開いた！\n中から「やすり」を手に入れた！"
         );
-      } else if (roomKey === "2,0") {
+      } else if (roomKey === "2,0,1,1") {
         unlockItem("chokinbako");
         showModal(
           "img/item/chokinbako.png",
@@ -1562,14 +1690,27 @@ function move(dir) {
     characterEl.style.transition = "";
   }
   // Y軸: 上端はy=gridSize-1, 下端はy=0
-  if (nextY > 4 && position.x === 2 && dy === 1 && room.y < roomGridSize - 1) {
+  const currentGridSize = getRoomGridSize();
+  const maxGridCoord = currentGridSize - 1;
+  if (
+    nextY > maxGridCoord &&
+    position.x === 2 &&
+    dy === 1 &&
+    room.y < currentGridSize - 1
+  ) {
     disableCharacterTransition();
     // 上端中央
     room.y += 1;
     nextY = 0;
     nextX = 2;
     movedRoom = true;
-    visitedRooms[room.y][room.x] = true;
+    if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
+    if (!visitedRooms[room.mapnum][room.floor])
+      visitedRooms[room.mapnum][room.floor] = Array.from(
+        { length: currentGridSize },
+        () => Array(currentGridSize).fill(false)
+      );
+    visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
     renderStoneboards();
     renderStands();
     renderMagicCircles();
@@ -1577,14 +1718,21 @@ function move(dir) {
     renderButtons();
     renderBoxes();
     renderStandItems();
+    renderLadder();
   } else if (nextY < 0 && position.x === 2 && dy === -1 && room.y > 0) {
     disableCharacterTransition();
     // 下端中央
     room.y -= 1;
-    nextY = 4;
+    nextY = maxGridCoord;
     nextX = 2;
     movedRoom = true;
-    visitedRooms[room.y][room.x] = true;
+    if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
+    if (!visitedRooms[room.mapnum][room.floor])
+      visitedRooms[room.mapnum][room.floor] = Array.from(
+        { length: currentGridSize },
+        () => Array(currentGridSize).fill(false)
+      );
+    visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
     renderStoneboards();
     renderStands();
     renderMagicCircles();
@@ -1593,10 +1741,10 @@ function move(dir) {
     renderBoxes();
     renderStandItems();
   } else if (
-    nextX > 4 &&
+    nextX > maxGridCoord &&
     position.y === 2 &&
     dx === 1 &&
-    room.x < roomGridSize - 1
+    room.x < currentGridSize - 1
   ) {
     disableCharacterTransition();
     // 右端中央
@@ -1604,35 +1752,49 @@ function move(dir) {
     nextX = 0;
     nextY = 2;
     movedRoom = true;
-    visitedRooms[room.y][room.x] = true;
+    if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
+    if (!visitedRooms[room.mapnum][room.floor])
+      visitedRooms[room.mapnum][room.floor] = Array.from(
+        { length: currentGridSize },
+        () => Array(currentGridSize).fill(false)
+      );
+    visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
     renderStoneboards();
     renderStands();
     renderMagicCircles();
     renderNormalMagicCircles();
     renderButtons();
     renderBoxes();
+    renderLadder();
   } else if (nextX < 0 && position.y === 2 && dx === -1 && room.x > 0) {
     disableCharacterTransition();
     // 左端中央
     room.x -= 1;
-    nextX = 4;
+    nextX = maxGridCoord;
     nextY = 2;
     movedRoom = true;
-    visitedRooms[room.y][room.x] = true;
+    if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
+    if (!visitedRooms[room.mapnum][room.floor])
+      visitedRooms[room.mapnum][room.floor] = Array.from(
+        { length: currentGridSize },
+        () => Array(currentGridSize).fill(false)
+      );
+    visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
     renderStoneboards();
     renderStands();
     renderMagicCircles();
     renderNormalMagicCircles();
     renderButtons();
     renderBoxes();
+    renderLadder();
   } else if (nextY < 0 && position.x === 2 && dy === 1 && room.y > 0) {
     // 下端中央から下へは移動不可
     return;
   } else if (
-    nextY > 4 &&
+    nextY > maxGridCoord &&
     position.x === 2 &&
     dy === -1 &&
-    room.y < roomGridSize - 1
+    room.y < currentGridSize - 1
   ) {
     // 上端中央から上へは移動不可
     return;
@@ -1643,12 +1805,55 @@ function move(dir) {
     nextX = clamp(nextX, 0, gridSize - 1);
     nextY = clamp(nextY, 0, gridSize - 1);
     // 進入不可マスなら移動しない
-    const roomKey = `${room.x},${room.y}`;
+    const roomKey = getRoomKey();
     if (isBlockedTile(roomKey, nextX, nextY)) return;
     if (nextX === position.x && nextY === position.y) return;
   }
   position.x = nextX;
   position.y = nextY;
+
+  // ハシゴマスに入った時の処理
+  if (
+    isLadderVisible &&
+    room.x === 1 &&
+    room.y === 1 &&
+    room.floor === 1 &&
+    room.mapnum === 1 &&
+    position.x === 2 &&
+    position.y === 2
+  ) {
+    showBottomModal({
+      text: "ハシゴを上りますか？",
+      yes: () => {
+        // 2Fの中央(1,1,2,1)に移動
+        room.floor = 2;
+        room.x = 1;
+        room.y = 1;
+        position.x = 2;
+        position.y = 2;
+        // 訪問済みマークを付ける
+        if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
+        if (!visitedRooms[room.mapnum][room.floor])
+          visitedRooms[room.mapnum][room.floor] = Array.from(
+            { length: getRoomGridSize(room.floor) },
+            () => Array(getRoomGridSize(room.floor)).fill(false)
+          );
+        visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
+        // 各要素を再描画
+        renderStoneboards();
+        renderStands();
+        renderMagicCircles();
+        renderNormalMagicCircles();
+        renderButtons();
+        renderBoxes();
+        renderStandItems();
+        renderLadder();
+        render();
+      },
+      no: () => {},
+    });
+  }
+
   render();
   // 部屋移動後はアニメーションを戻す
   if (movedRoom) {
@@ -1684,6 +1889,7 @@ window.addEventListener("resize", () => {
   renderButtons();
   renderButtons();
   renderBoxes();
+  renderLadder();
 });
 
 render();
@@ -1694,6 +1900,7 @@ renderNormalMagicCircles();
 renderButtons();
 renderButtons();
 renderBoxes();
+renderLadder();
 
 function isBlockedTile(roomKey, x, y) {
   const list = blockedTiles[roomKey] || [];

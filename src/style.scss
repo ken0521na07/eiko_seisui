@@ -445,6 +445,9 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
   /* minimap */
   .minimap {
     position: fixed;
