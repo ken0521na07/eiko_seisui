@@ -1,7 +1,7 @@
 // ===== メインエントリーポイント =====
 
-import { initializeDOMElements } from "./state.js";
-import { loadUnlockedItems, loadStandItems } from "./storage.js";
+import { initializeDOMElements, restoreGameState } from "./state.js";
+import { loadUnlockedItems, loadStandItems, loadGameState } from "./storage.js";
 import { renderGame } from "./ui.js";
 import { initializeInputHandlers } from "./input.js";
 
@@ -13,6 +13,8 @@ window.addEventListener("DOMContentLoaded", () => {
   // ローカルストレージから状態復元
   loadUnlockedItems();
   loadStandItems();
+  const savedState = loadGameState();
+  restoreGameState(savedState);
 
   // 入力ハンドラー初期化
   initializeInputHandlers();

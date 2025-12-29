@@ -6,7 +6,7 @@ import { floorGridSizes, gridSize } from "./constants.js";
 export const position = { x: 2, y: 2 };
 
 // 現在の部屋座標
-export const room = { x: 0, y: 0, floor: 1, mapnum: 2 };
+export const room = { x: 0, y: 0, floor: 2, mapnum: 2 };
 
 // 通過した部屋を記録 (4次元: [mapnum][floor][y][x])
 export const visitedRooms = {};
@@ -20,6 +20,30 @@ function initializeVisitedRooms() {
       () => Array(getRoomGridSize(room.floor)).fill(false)
     );
   visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
+}
+
+// ゲーム状態を復元する関数（localStorage から読み込む）
+export function restoreGameState(savedState) {
+  if (savedState.position) {
+    position.x = savedState.position.x;
+    position.y = savedState.position.y;
+  }
+  if (savedState.room) {
+    room.x = savedState.room.x;
+    room.y = savedState.room.y;
+    room.floor = savedState.room.floor;
+    room.mapnum = savedState.room.mapnum;
+  }
+  if (savedState.visitedRooms) {
+    Object.keys(savedState.visitedRooms).forEach((mapnum) => {
+      visitedRooms[mapnum] = savedState.visitedRooms[mapnum];
+    });
+  }
+  if (savedState.magicCircleStates) {
+    Object.keys(savedState.magicCircleStates).forEach((key) => {
+      magicCircleStates[key] = savedState.magicCircleStates[key];
+    });
+  }
 }
 
 initializeVisitedRooms();

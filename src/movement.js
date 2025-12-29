@@ -11,9 +11,14 @@ import {
   setRoomBlackout,
   controlsDisabled,
   setControlsDisabled,
+  magicCircleStates,
 } from "./state.js";
 import { itemList } from "./config.js";
-import { getFloor2CenterUnlocked, setFloor2CenterUnlocked } from "./storage.js";
+import {
+  getFloor2CenterUnlocked,
+  setFloor2CenterUnlocked,
+  saveGameState,
+} from "./storage.js";
 import { showBottomModal, renderGame, renderLadder, render } from "./ui.js";
 import { ladders } from "./config.js";
 import { blockedTiles } from "./config.js";
@@ -81,6 +86,13 @@ export function move(dir) {
     movedRoom = true;
     handleRoomEntryOrFall();
   } else if (nextY < 0 && position.x === 2 && dy === -1 && room.y > 0) {
+    // map2 1F (2,0,1,2)への進入規制: 上(2,1)から下へ
+    if (room.floor === 1 && room.mapnum === 2 && room.x === 2 && room.y === 1) {
+      showBottomModal({
+        text: "通路に固い扉がある。\n条件を満たさないと開かなさそうだ。",
+      });
+      return;
+    }
     disableCharacterTransition();
     // 下端中央
     room.y -= 1;
@@ -118,6 +130,13 @@ export function move(dir) {
         // 移動を不可能にして、上記に処理を漏れば友人墨ぜない
         return;
       }
+    }
+    // map2 1F (2,0,1,2)への進入規制: 左(1,0)から右へ
+    if (room.floor === 1 && room.mapnum === 2 && room.x === 1 && room.y === 0) {
+      showBottomModal({
+        text: "通路に固い扉がある。\n条件を満たさないと開かなさそうだ。",
+      });
+      return;
     }
     disableCharacterTransition();
     // 右端中央
@@ -171,8 +190,20 @@ export function move(dir) {
 
   if (activeLadder) {
     showBottomModal({
-      text: activeLadder.prompt,
+      text:
+        activeLadder.direction === "down"
+          ? "ハシゴを降りますか？"
+          : "ハシゴを上りますか？",
       yes: () => {
+        // ハシゴでフロア移動する場合、map2の1Fの訪問フラグをすべてクリア
+        if (activeLadder.dest.mapnum === 2) {
+          if (visitedRooms[2] && visitedRooms[2][1]) {
+            const gridSize1F = getRoomGridSize(1, 2);
+            visitedRooms[2][1] = Array.from({ length: gridSize1F }, () =>
+              Array(gridSize1F).fill(false)
+            );
+          }
+        }
         // 目的地に移動
         room.floor = activeLadder.dest.floor;
         room.x = activeLadder.dest.x;
@@ -187,6 +218,7 @@ export function move(dir) {
   }
 
   render();
+  saveGameState(position, room, visitedRooms, magicCircleStates);
   // 部屋移動後はアニメーションを戻す
   if (movedRoom) {
     setTimeout(enableCharacterTransition, 0);
@@ -235,12 +267,14 @@ function handleRoomEntryOrFall() {
       setRoomBlackout(false);
       setControlsDisabled(false);
       renderGame();
+      saveGameState(position, room, visitedRooms, magicCircleStates);
       showBottomModal({ text: "一つ下に落下してしまった！" });
     }, 500);
   } else {
     // 初回入室の場合は訪問フラグを立てて通常描画
     visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
     renderGame();
+    saveGameState(position, room, visitedRooms, magicCircleStates);
   }
 }
 

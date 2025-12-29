@@ -115,9 +115,52 @@ export function setFloor2CenterUnlocked() {
   localStorage.setItem("floor2CenterUnlocked", JSON.stringify(true));
 }
 
+// --- ゲーム状態管理 (position, room, visitedRooms, magicCircleStates) ---
+export function saveGameState(position, room, visitedRooms, magicCircleStates) {
+  try {
+    localStorage.setItem("gamePosition", JSON.stringify(position));
+    localStorage.setItem("gameRoom", JSON.stringify(room));
+    localStorage.setItem("visitedRooms", JSON.stringify(visitedRooms));
+    localStorage.setItem(
+      "magicCircleStates",
+      JSON.stringify(magicCircleStates)
+    );
+  } catch (e) {
+    console.error("Failed to save game state:", e);
+  }
+}
+
+export function loadGameState() {
+  try {
+    const positionData = localStorage.getItem("gamePosition");
+    const roomData = localStorage.getItem("gameRoom");
+    const visitedData = localStorage.getItem("visitedRooms");
+    const magicData = localStorage.getItem("magicCircleStates");
+
+    return {
+      position: positionData ? JSON.parse(positionData) : null,
+      room: roomData ? JSON.parse(roomData) : null,
+      visitedRooms: visitedData ? JSON.parse(visitedData) : null,
+      magicCircleStates: magicData ? JSON.parse(magicData) : null,
+    };
+  } catch (e) {
+    console.error("Failed to load game state:", e);
+    return {
+      position: null,
+      room: null,
+      visitedRooms: null,
+      magicCircleStates: null,
+    };
+  }
+}
+
 // --- リセット関数 ---
 export function resetAllStorage() {
   localStorage.removeItem("checkedStoneboards");
+  localStorage.removeItem("gamePosition");
+  localStorage.removeItem("gameRoom");
+  localStorage.removeItem("visitedRooms");
+  localStorage.removeItem("magicCircleStates");
   localStorage.removeItem("openedBoxes");
   localStorage.removeItem("standItems");
   localStorage.removeItem("unlockedItems");

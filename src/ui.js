@@ -36,6 +36,7 @@ import {
   checkBoxOpenSequence,
   getFloor2CenterUnlocked,
   saveStandItems,
+  saveGameState,
 } from "./storage.js";
 import {
   stoneboards,
@@ -180,7 +181,11 @@ export function renderLadder() {
 
   roomLadders.forEach((ladder) => {
     const img = document.createElement("img");
-    img.src = "img/UI/ladder.png";
+    // 方向に応じて画像を切り替え
+    img.src =
+      ladder.direction === "down"
+        ? "img/UI/ladder_down.png"
+        : "img/UI/ladder.png";
     img.alt = "ハシゴ";
     img.className = "ladder";
     img.style.position = "absolute";
@@ -221,9 +226,16 @@ export function renderStoneboards() {
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
   const roomKey = getRoomKey();
   const boards = stoneboards[roomKey] || [];
-  boards.forEach(({ x, y, img: imgName, direction }) => {
+  boards.forEach(({ x, y, img: imgName, direction, frame, frameImg }) => {
     const img = document.createElement("img");
-    img.src = "img/UI/stoneboard.png";
+    // フレーム画像の選択（デフォルト: stoneboard）
+    if (frameImg) {
+      img.src = frameImg;
+    } else if (frame === "window") {
+      img.src = "img/UI/window.png";
+    } else {
+      img.src = "img/UI/stoneboard.png";
+    }
     img.alt = "石板";
     img.className = "stoneboard";
     img.style.position = "absolute";
@@ -308,14 +320,14 @@ export function renderStoneboards() {
     img.addEventListener("click", () => {
       // キャラクターが同じマスにいるときのみ調べられる
       if (position.x === x && position.y === y) {
-        if (roomKey === "1,1,1,1" || roomKey === "1,1,2,1") {
-          showModal(
-            `img/nazo/${imgName}`,
-            "石板に謎のようなものが書かれている。\n解き明かすと、次の道が開けそうだ。"
-          );
-        } else {
-          showModal(`img/nazo/${imgName}`, "壁に何か書かれている");
+        let message = "壁に何か書かれている";
+        if (frame === "window") {
+          message = "窓から外の様子が見える";
+        } else if (roomKey === "1,1,1,1" || roomKey === "1,1,2,1") {
+          message =
+            "石板に謎のようなものが書かれている。\n解き明かすと、次の道が開けそうだ。";
         }
+        showModal(`img/nazo/${imgName}`, message);
         setCheckedStoneboard(roomKey, x, y);
         renderStoneboards(); // 状態更新
       }
@@ -784,6 +796,7 @@ function showButtonModal(roomKey, x, y, color = "blue") {
         : "青いスイッチがある。押しますか？",
     yes: () => {
       magicCircleStates[roomKey] = color;
+      saveGameState(position, room, visitedRooms, magicCircleStates);
       // 魔法陣が赤/青の間は中央3x3マス進入不可
       setMagicCircleBlock(roomKey, true);
       renderMagicCircles();
@@ -791,6 +804,7 @@ function showButtonModal(roomKey, x, y, color = "blue") {
       // 5秒後に白に戻す
       setTimeout(() => {
         magicCircleStates[roomKey] = "white";
+        saveGameState(position, room, visitedRooms, magicCircleStates);
         setMagicCircleBlock(roomKey, false);
         renderMagicCircles();
         renderButtons();

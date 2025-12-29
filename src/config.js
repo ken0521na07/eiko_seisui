@@ -6,34 +6,74 @@ export const ladders = [
   {
     roomKey: "1,1,1,1",
     x: 2,
-    y: 2,
+    y: 3,
     dest: { x: 0, y: 0, floor: 2, mapnum: 1 },
     unlocked: false,
-    prompt: "ハシゴを上りますか？",
+    direction: "up",
   },
   {
     roomKey: "0,0,2,1",
     x: 2,
-    y: 2,
+    y: 1,
     dest: { x: 1, y: 1, floor: 1, mapnum: 1 },
     unlocked: true,
-    prompt: "ハシゴを降りますか？",
+    direction: "down",
   },
   {
     roomKey: "1,1,2,1",
     x: 2,
-    y: 2,
+    y: 3,
     dest: { x: 0, y: 0, floor: 3, mapnum: 1 },
     unlocked: false,
-    prompt: "ハシゴを上りますか？",
+    direction: "up",
   },
   {
     roomKey: "0,0,3,1",
     x: 2,
-    y: 2,
+    y: 1,
     dest: { x: 1, y: 1, floor: 2, mapnum: 1 },
-    unlocked: true, // 3F→2Fは常に解放
-    prompt: "ハシゴを降りますか？",
+    direction: "down",
+    unlocked: false,
+  },
+  {
+    roomKey: "0,0,2,2",
+    x: 2,
+    y: 1,
+    dest: { x: 1, y: 2, floor: 1, mapnum: 2 },
+    unlocked: true,
+    direction: "down",
+  },
+  {
+    roomKey: "1,2,1,2",
+    x: 2,
+    y: 3,
+    dest: { x: 0, y: 0, floor: 2, mapnum: 2 },
+    unlocked: true,
+    direction: "up",
+  },
+  {
+    roomKey: "1,2,1,2",
+    x: 2,
+    y: 1,
+    dest: { x: 2, y: 3, floor: 0, mapnum: 2 },
+    unlocked: false,
+    direction: "down",
+  },
+  {
+    roomKey: "2,3,0,2",
+    x: 2,
+    y: 3,
+    dest: { x: 1, y: 2, floor: 1, mapnum: 2 },
+    unlocked: false,
+    direction: "up",
+  },
+  {
+    roomKey: "3,1,0,2",
+    x: 2,
+    y: 3,
+    dest: { x: 2, y: 0, floor: 1, mapnum: 2 },
+    unlocked: false,
+    direction: "up",
   },
 ];
 
@@ -51,6 +91,15 @@ export const stoneboards = {
   "1,1,1,1": [{ x: 4, y: 4, img: "nazo_1-1-17.png", direction: "right" }],
   "1,1,2,1": [{ x: 4, y: 4, img: "nazo_1-2-5.png", direction: "right" }],
   "0,0,3,1": [{ x: 2, y: 4, img: "nazo_1-3-1A.png", direction: "up" }],
+
+  "0,0,2,2": [
+    { x: 2, y: 4, img: "nazo_2-2-1A.png", direction: "up" },
+    { x: 4, y: 2, img: "nazo_2-2-1B.png", direction: "right", frame: "window" },
+  ],
+  "2,2,1,2": [{ x: 4, y: 2, img: "nazo_2-1-3.png", direction: "right" }],
+  "1,0,1,2": [
+    { x: 2, y: 0, img: "nazo_2-1-8.png", direction: "down", frame: "window" },
+  ],
 };
 
 // 特別な魔法陣（白）配置データ: { [roomKey]: [{ x, y, width, height }] }
