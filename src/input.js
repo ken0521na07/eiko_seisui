@@ -1,6 +1,7 @@
 // ===== 入力制御 =====
 
 import { move } from "./movement.js";
+import { controlsDisabled } from "./state.js";
 import { renderGame } from "./ui.js";
 import { showItemModal } from "./utils.js";
 import { reset } from "./reset.js";
@@ -16,6 +17,10 @@ export function initializeInputHandlers() {
     };
     const dir = keyMap[event.key];
     if (!dir) return;
+    if (controlsDisabled) {
+      event.preventDefault();
+      return;
+    }
     event.preventDefault();
     move(dir);
   }
@@ -25,7 +30,10 @@ export function initializeInputHandlers() {
   // D-pad ボタン
   const buttons = document.querySelectorAll(".dpad__btn");
   buttons.forEach((btn) => {
-    btn.addEventListener("click", () => move(btn.dataset.dir));
+    btn.addEventListener("click", () => {
+      if (controlsDisabled) return;
+      move(btn.dataset.dir);
+    });
   });
 
   // ウィンドウリサイズ
@@ -51,7 +59,10 @@ export function initializeInputHandlers() {
     resetBtn.style.borderRadius = "8px";
     resetBtn.style.cursor = "pointer";
     resetBtn.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
-    resetBtn.addEventListener("click", () => reset());
+    resetBtn.addEventListener("click", () => {
+      if (controlsDisabled) return;
+      reset();
+    });
     document.body.appendChild(resetBtn);
   }
 
@@ -72,7 +83,10 @@ export function initializeInputHandlers() {
     itemBtn.style.borderRadius = "8px";
     itemBtn.style.cursor = "pointer";
     itemBtn.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
-    itemBtn.addEventListener("click", showItemModal);
+    itemBtn.addEventListener("click", () => {
+      if (controlsDisabled) return;
+      showItemModal();
+    });
     document.body.appendChild(itemBtn);
   }
 

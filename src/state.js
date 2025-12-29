@@ -6,7 +6,7 @@ import { floorGridSizes, gridSize } from "./constants.js";
 export const position = { x: 2, y: 2 };
 
 // 現在の部屋座標
-export const room = { x: 0, y: 0, floor: 2, mapnum: 2 };
+export const room = { x: 0, y: 0, floor: 1, mapnum: 2 };
 
 // 通過した部屋を記録 (4次元: [mapnum][floor][y][x])
 export const visitedRooms = {};
@@ -65,3 +65,14 @@ export let magicCircleElements = [];
 
 // 二度目の入室時に一時的に背景を黒にするためのフラグ
 export let roomBlackout = false;
+
+// 黒背景フラグの更新関数（他モジュールからは代入せずこの関数経由で変更）
+export function setRoomBlackout(flag) {
+  roomBlackout = !!flag;
+}
+
+// 一時的に操作を無効化するためのフラグ
+export let controlsDisabled = false;
+export function setControlsDisabled(flag) {
+  controlsDisabled = !!flag;
+}

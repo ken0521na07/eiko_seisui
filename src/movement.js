@@ -8,6 +8,9 @@ import {
   getRoomGridSize,
   visitedRooms,
   roomBlackout,
+  setRoomBlackout,
+  controlsDisabled,
+  setControlsDisabled,
 } from "./state.js";
 import { itemList } from "./config.js";
 import { getFloor2CenterUnlocked, setFloor2CenterUnlocked } from "./storage.js";
@@ -16,6 +19,7 @@ import { ladders } from "./config.js";
 import { blockedTiles } from "./config.js";
 
 export function move(dir) {
+  if (controlsDisabled) return;
   const delta = directions[dir];
   if (!delta) return;
   const [dx, dy] = delta;
@@ -202,32 +206,37 @@ function handleRoomEntryOrFall() {
 
   // mapnum:2 の 1F で二度目の入室なら落下
   if (room.mapnum === 2 && room.floor === 1 && alreadyVisited) {
-    // 一時的に黒背景を表示
-    roomBlackout = true;
+    // 一時的に黒背景を表示し、操作無効化
+    setControlsDisabled(true);
+    setRoomBlackout(true);
     renderGame();
 
-    // 真下に落下: x+1, y+1, floor-1
-    const targetFloor = room.floor - 1;
-    const gridSizeBelow = getRoomGridSize(targetFloor);
-    room.floor = targetFloor;
-    room.x = Math.min(room.x + 1, gridSizeBelow - 1);
-    room.y = Math.min(room.y + 1, gridSizeBelow - 1);
-    position.x = 2;
-    position.y = 2;
+    // 2秒後に落下処理
+    setTimeout(() => {
+      // 真下に落下: x+1, y+1, floor-1
+      const targetFloor = room.floor - 1;
+      const gridSizeBelow = getRoomGridSize(targetFloor);
+      room.floor = targetFloor;
+      room.x = Math.min(room.x + 1, gridSizeBelow - 1);
+      room.y = Math.min(room.y + 1, gridSizeBelow - 1);
+      position.x = 2;
+      position.y = 2;
 
-    // 目的地の訪問管理
-    if (!visitedRooms[room.mapnum][room.floor]) {
-      visitedRooms[room.mapnum][room.floor] = Array.from(
-        { length: gridSizeBelow },
-        () => Array(gridSizeBelow).fill(false)
-      );
-    }
-    visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
+      // 目的地の訪問管理
+      if (!visitedRooms[room.mapnum][room.floor]) {
+        visitedRooms[room.mapnum][room.floor] = Array.from(
+          { length: gridSizeBelow },
+          () => Array(gridSizeBelow).fill(false)
+        );
+      }
+      visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
 
-    // 黒背景フラグ解除して再描画、メッセージ表示
-    roomBlackout = false;
-    renderGame();
-    showBottomModal({ text: "一つ下に落下してしまった！" });
+      // 黒背景解除・操作復帰・再描画・メッセージ表示
+      setRoomBlackout(false);
+      setControlsDisabled(false);
+      renderGame();
+      showBottomModal({ text: "一つ下に落下してしまった！" });
+    }, 500);
   } else {
     // 初回入室の場合は訪問フラグを立てて通常描画
     visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
