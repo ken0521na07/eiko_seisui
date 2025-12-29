@@ -14,7 +14,7 @@ export const ladders = [
   {
     roomKey: "0,0,2,1",
     x: 2,
-    y: 1,
+    y: 3,
     dest: { x: 1, y: 1, floor: 1, mapnum: 1 },
     unlocked: true,
     direction: "down",
@@ -30,7 +30,7 @@ export const ladders = [
   {
     roomKey: "0,0,3,1",
     x: 2,
-    y: 1,
+    y: 3,
     dest: { x: 1, y: 1, floor: 2, mapnum: 1 },
     direction: "down",
     unlocked: false,
@@ -38,7 +38,7 @@ export const ladders = [
   {
     roomKey: "0,0,2,2",
     x: 2,
-    y: 1,
+    y: 3,
     dest: { x: 1, y: 2, floor: 1, mapnum: 2 },
     unlocked: true,
     direction: "down",
@@ -62,7 +62,7 @@ export const ladders = [
   {
     roomKey: "2,3,0,2",
     x: 2,
-    y: 3,
+    y: 1,
     dest: { x: 1, y: 2, floor: 1, mapnum: 2 },
     unlocked: false,
     direction: "up",
@@ -100,6 +100,7 @@ export const stoneboards = {
   "1,0,1,2": [
     { x: 2, y: 0, img: "nazo_2-1-8.png", direction: "down", frame: "window" },
   ],
+  "3,1,0,2": [{ x: 4, y: 4, img: "nazo_2-B1-19.png", direction: "right" }],
 };
 
 // 特別な魔法陣（白）配置データ: { [roomKey]: [{ x, y, width, height }] }
@@ -112,7 +113,56 @@ export const magicCircles = {
 export const buttons_data = {
   "1,3,1,1": [{ x: 4, y: 0, color: "blue" }],
   "3,3,1,1": [{ x: 4, y: 0, color: "red" }],
-  "2,2,2,1": [{ x: 2, y: 2, img: "img/UI/button_2.png", action: "warp" }],
+  // map1 → map2 ワープボタン（隣のピラミッドへ）
+  "2,2,2,1": [
+    {
+      x: 0,
+      y: 0,
+      img: "img/UI/button_2.png",
+      action: "warp",
+      // ワープ先: map2 2F 左下の部屋
+      targetRoomKey: "0,0,2,2",
+    },
+  ],
+  // map2 → map1 ワープボタン（隣のピラミッドへ）
+  "0,0,2,2": [
+    {
+      x: 0,
+      y: 0,
+      img: "img/UI/button_1.png",
+      action: "warp",
+      // ワープ先: map1 2F 中央の部屋
+      targetRoomKey: "2,2,2,1",
+    },
+  ],
+  // map2 0F: (2,3,0,2) にボタン追加（ハシゴ解放）
+  "2,3,0,2": [
+    {
+      x: 0,
+      y: 0,
+      img: "img/UI/button_up.png",
+      action: "unlockLadders",
+      targets: ["2,3,0,2", "1,2,1,2"],
+    },
+  ],
+  "2,0,1,2": [
+    {
+      x: 0,
+      y: 0,
+      img: "img/UI/button_3.png",
+      action: "warp",
+      targetRoomKey: "0,0,1,3",
+    },
+  ],
+  "0,0,1,3": [
+    {
+      x: 0,
+      y: 0,
+      img: "img/UI/button_2.png",
+      action: "warp",
+      targetRoomKey: "2,0,1,2",
+    },
+  ],
 };
 
 // 普通の魔法陣（mahoujin.png）配置データ
@@ -129,6 +179,7 @@ export const normalMagicCircles = {
   "4,4,1,1": [{ width: 3, height: 3 }],
   // 2F: 1,1 にオレンジの魔法陣を配置
   "1,1,2,1": [{ width: 3, height: 3, img: "img/UI/mahoujin_orange.png" }],
+  "3,1,0,2": [{ width: 3, height: 3, img: "img/UI/mahoujin_star.png" }],
 };
 
 // 台座配置データ: { [roomKey]: [{ x, y }] }
@@ -148,10 +199,10 @@ export const stands = {
   "4,4,1,1": [{ x: 0, y: 0 }],
   "0,0,1,2": [{ x: 0, y: 0 }],
   "0,1,1,2": [{ x: 0, y: 0 }],
+  "0,2,1,2": [{ x: 0, y: 0 }],
   "1,0,1,2": [{ x: 0, y: 0 }],
   "1,1,1,2": [{ x: 0, y: 0 }],
   "1,2,1,2": [{ x: 0, y: 0 }],
-  "2,0,1,2": [{ x: 0, y: 0 }],
   "2,1,1,2": [{ x: 0, y: 0 }],
   "2,2,1,2": [{ x: 0, y: 0 }],
 };
@@ -175,6 +226,11 @@ export const boxPaperRewards = {
   "0,1,2,1": "img/nazo/nazo_1-2-4B.png",
   "2,1,2,1": "img/nazo/nazo_1-2-6B.png",
   "1,0,2,1": "img/nazo/nazo_1-2-8B.png",
+};
+
+// 宝石（クリアアイテム）配置データ: { [roomKey]: [{ x, y, img }] }
+export const jewelries = {
+  "0,0,1,3": [{ x: 2, y: 3, img: "img/UI/jewelry.png" }],
 };
 
 // 進入不可マスデータ: { [roomKey]: [{ x, y, type }] }

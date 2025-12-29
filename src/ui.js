@@ -50,6 +50,7 @@ import {
   itemList,
   itemCombinations,
   blockedTiles,
+  jewelries,
 } from "./config.js";
 import {
   unlockItem,
@@ -419,73 +420,104 @@ export function renderButtons() {
   const btns = buttons_data[roomKey] || [];
   const currentState = magicCircleStates[roomKey];
   const isLocked = currentState === "red" || currentState === "blue";
-  btns.forEach(({ x, y, color, img: customImg, action }) => {
-    const buttonImg = document.createElement("img");
-    // カスタム画像がある場合はそれを使用
-    if (customImg) {
-      buttonImg.src = customImg;
-      buttonImg.alt = "ボタン";
-    } else {
-      // 押せないときは_pushed画像
-      if (isLocked) {
-        buttonImg.src =
-          color === "red"
-            ? "img/UI/button_red_pushed.png"
-            : "img/UI/button_blue_pushed.png";
+  btns.forEach(
+    ({ x, y, color, img: customImg, action, targets, targetRoomKey }) => {
+      const buttonImg = document.createElement("img");
+      // カスタム画像がある場合はそれを使用
+      if (customImg) {
+        buttonImg.src = customImg;
+        buttonImg.alt = "ボタン";
       } else {
-        buttonImg.src =
-          color === "red" ? "img/UI/button_red.png" : "img/UI/button_blue.png";
-      }
-      buttonImg.alt = color === "red" ? "赤いボタン" : "青いボタン";
-    }
-    buttonImg.className = "button";
-    buttonImg.style.position = "absolute";
-    buttonImg.style.left = `${
-      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
-    }px`;
-    buttonImg.style.top = `${
-      SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-      (gridSize - 1 - y) * tileSize
-    }px`;
-    buttonImg.style.height = `${tileSize * 0.9}px`;
-    buttonImg.style.width = "auto";
-    // 左右中央揃え
-    buttonImg.onload = function () {
-      buttonImg.style.left = `${
-        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) +
-        x * tileSize +
-        (tileSize - buttonImg.offsetWidth) / 2
-      }px`;
-    };
-    buttonImg.style.zIndex = 7;
-    // 押せるときのみイベント付与（カスタムボタンはロック判定なし）
-    if (customImg || !isLocked) {
-      buttonImg.addEventListener("click", () => {
-        // 隣接マスにいる場合のみ反応
-        const dx = Math.abs(position.x - x);
-        const dy = Math.abs(position.y - y);
-        if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-          if (customImg && action) {
-            // カスタムボタンのアクション実行
-            handleButtonAction(action);
-          } else {
-            // 通常のボタン
-            showButtonModal(roomKey, x, y, color);
-          }
+        // 押せないときは_pushed画像
+        if (isLocked) {
+          buttonImg.src =
+            color === "red"
+              ? "img/UI/button_red_pushed.png"
+              : "img/UI/button_blue_pushed.png";
+        } else {
+          buttonImg.src =
+            color === "red"
+              ? "img/UI/button_red.png"
+              : "img/UI/button_blue.png";
         }
-      });
+        buttonImg.alt = color === "red" ? "赤いボタン" : "青いボタン";
+      }
+      buttonImg.className = "button";
+      buttonImg.style.position = "absolute";
+      buttonImg.style.left = `${
+        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
+      }px`;
+      buttonImg.style.top = `${
+        SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+        (gridSize - 1 - y) * tileSize
+      }px`;
+      buttonImg.style.height = `${tileSize * 0.9}px`;
+      buttonImg.style.width = "auto";
+      // 左右中央揃え
+      buttonImg.onload = function () {
+        buttonImg.style.left = `${
+          SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) +
+          x * tileSize +
+          (tileSize - buttonImg.offsetWidth) / 2
+        }px`;
+      };
+      buttonImg.style.zIndex = 7;
+      // 押せるときのみイベント付与（カスタムボタンはロック判定なし）
+      if (customImg || !isLocked) {
+        buttonImg.addEventListener("click", () => {
+          // 隣接マスにいる場合のみ反応
+          const dx = Math.abs(position.x - x);
+          const dy = Math.abs(position.y - y);
+          if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+            if (customImg && action) {
+              // カスタムボタンのアクション実行
+              handleButtonAction(action, { targets, roomKey, targetRoomKey });
+            } else {
+              // 通常のボタン
+              showButtonModal(roomKey, x, y, color);
+            }
+          }
+        });
+      }
+      mapEl.appendChild(buttonImg);
+      buttonElements.push(buttonImg);
     }
-    mapEl.appendChild(buttonImg);
-    buttonElements.push(buttonImg);
-  });
+  );
 }
 
-function handleButtonAction(action) {
+function handleButtonAction(action, opts = {}) {
   if (action === "warp") {
-    showBottomModal({
-      text: "2つ目のピラミットにワープした！",
-      close: () => {},
-    });
+    // ワープ先の指定（"x,y,floor,mapnum"）
+    const { targetRoomKey } = opts;
+    const destKey = targetRoomKey || "0,0,2,2"; // 互換のためデフォルト維持
+    const [dx, dy, dfloor, dmapnum] = destKey.split(",").map(Number);
+    room.mapnum = dmapnum;
+    room.floor = dfloor;
+    room.x = dx;
+    room.y = dy;
+    // 位置は固定(2,2)
+    position.x = 2;
+    position.y = 2;
+    // 訪問済み管理
+    const gridSize = getRoomGridSize(room.floor);
+    if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
+    if (!visitedRooms[room.mapnum][room.floor]) {
+      visitedRooms[room.mapnum][room.floor] = Array.from(
+        { length: gridSize },
+        () => Array(gridSize).fill(false)
+      );
+    }
+    visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
+    // 再描画と保存
+    renderGame();
+    saveGameState(position, room, visitedRooms, magicCircleStates);
+    // メッセージ表示
+    showBottomModal({ text: "隣のピラミッドにワープしたようだ" });
+  } else if (action === "unlockLadders") {
+    const { targets = [] } = opts;
+    targets.forEach((rk) => unlockLadder(rk));
+    renderLadder();
+    showBottomModal({ text: "ハシゴが解放された。" });
   }
 }
 
@@ -610,6 +642,56 @@ export function renderBoxes() {
       }
     }
     mapEl.appendChild(img);
+  });
+}
+
+export function renderJewelries() {
+  // 既存の宝石imgを削除
+  const oldJewelries = document.querySelectorAll(".jewelry");
+  oldJewelries.forEach((el) => el.remove());
+  // 現在の部屋に宝石があれば描画
+  const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
+  const roomKey = getRoomKey();
+  const list = jewelries[roomKey] || [];
+  list.forEach(({ x, y, img: imgSrc }) => {
+    const img = document.createElement("img");
+    img.src = imgSrc;
+    img.alt = "宝石";
+    img.className = "jewelry";
+    img.style.position = "absolute";
+    img.style.left = `${
+      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
+    }px`;
+    img.style.top = `${
+      SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+      (gridSize - 1 - y) * tileSize
+    }px`;
+    img.style.width = `${tileSize}px`;
+    img.style.height = "auto";
+    img.style.zIndex = 8;
+    img.style.cursor = "pointer";
+    img.addEventListener("click", () => {
+      // 隣接マスにいる場合のみ反応
+      const dx = Math.abs(position.x - x);
+      const dy = Math.abs(position.y - y);
+      if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+        showJewelryModal();
+      }
+    });
+    mapEl.appendChild(img);
+  });
+}
+
+function showJewelryModal() {
+  showBottomModal({
+    text: "とても高価そうな宝石が台座に飾られている。手に入れますか？",
+    yes: () => {
+      showBottomModal({
+        text: "クリア！",
+        close: () => {},
+      });
+    },
+    no: () => {},
   });
 }
 
@@ -776,6 +858,16 @@ function showStandPlaceResult(roomKey, standX, standY, item) {
         unlockLadder("1,1,1,1");
         renderLadder();
 
+        showBottomModal({
+          text: "どこかで何かが変化したようだ",
+          close: () => {},
+        });
+      }
+      // 新条件: 「1,2,1,2」の台座に「水瓶」を置いたら、
+      //         「3,1,0,2」のハシゴを解放し、テキストを表示
+      if (roomKey === "1,2,1,2" && item.id === "tsubo") {
+        unlockLadder("3,1,0,2");
+        renderLadder();
         showBottomModal({
           text: "どこかで何かが変化したようだ",
           close: () => {},
@@ -1171,6 +1263,7 @@ export function renderGame() {
   renderBoxes();
   renderStandItems();
   renderLadder();
+  renderJewelries();
 }
 
 export { showItemModal } from "./utils.js";

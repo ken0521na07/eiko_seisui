@@ -26,6 +26,10 @@ export const floorGridSizes = {
     1: 3,
     2: 1,
   },
+  3: {
+    // mapnum=3: 1Fのみ、1x1（部屋サイズは同様）
+    1: 1,
+  },
 };
 
 // 方向ベクトル定義

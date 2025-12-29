@@ -1,6 +1,6 @@
 // ===== localStorage管理 =====
 
-import { itemList, defaultUnlockedById } from "./config.js";
+import { itemList, defaultUnlockedById, ladders } from "./config.js";
 import { standItems } from "./state.js";
 
 // --- アイテム入手状態管理 ---
@@ -165,5 +165,35 @@ export function resetAllStorage() {
   localStorage.removeItem("standItems");
   localStorage.removeItem("unlockedItems");
   localStorage.removeItem("floor2CenterUnlocked");
+  localStorage.removeItem("unlockedLaddersRoomKeys");
   resetBoxOpenOrder();
+}
+
+// --- ハシゴ解放状態管理（部屋キー単位で保持） ---
+export function getUnlockedLaddersRoomKeys() {
+  try {
+    return (
+      JSON.parse(localStorage.getItem("unlockedLaddersRoomKeys") || "[]") || []
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function addUnlockedLaddersRoomKey(roomKey) {
+  const list = getUnlockedLaddersRoomKeys();
+  if (!list.includes(roomKey)) {
+    list.push(roomKey);
+    localStorage.setItem("unlockedLaddersRoomKeys", JSON.stringify(list));
+  }
+}
+
+export function loadUnlockedLadders() {
+  const list = getUnlockedLaddersRoomKeys();
+  // 保存された部屋キーに属するハシゴを解放
+  ladders.forEach((l) => {
+    if (list.includes(l.roomKey)) {
+      l.unlocked = true;
+    }
+  });
 }

@@ -3,7 +3,11 @@
 import { gridSize, MAP_PX, SAFE_MARGIN, PLAYABLE_PX } from "./constants.js";
 import { mapEl, position, getRoomKey, standItems } from "./state.js";
 import { itemList, itemCombinations, stands, ladders } from "./config.js";
-import { saveUnlockedItems, saveStandItems } from "./storage.js";
+import {
+  saveUnlockedItems,
+  saveStandItems,
+  addUnlockedLaddersRoomKey,
+} from "./storage.js";
 import {
   showBottomModal,
   showModal,
@@ -81,10 +85,13 @@ export function showStandItemImage(roomKey, standX, standY, item) {
 
 // ハシゴ解放関数
 export function unlockLadder(roomKey) {
-  const ladder = ladders.find((l) => l.roomKey === roomKey);
-  if (ladder) {
-    ladder.unlocked = true;
-  }
+  // 同じ部屋キーに複数のハシゴが存在する場合、すべて解放する
+  const targets = ladders.filter((l) => l.roomKey === roomKey);
+  targets.forEach((l) => {
+    l.unlocked = true;
+  });
+  // 永続化（部屋キー単位で保持）
+  addUnlockedLaddersRoomKey(roomKey);
 }
 
 // 指定されたアイテムIDが組み合わせられるかを確認
