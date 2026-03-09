@@ -177,7 +177,7 @@ export function renderLadder() {
 
   // 現在の部屋にあるハシゴを描画
   const roomLadders = ladders.filter(
-    (ladder) => ladder.roomKey === roomKey && ladder.unlocked
+    (ladder) => ladder.roomKey === roomKey && ladder.unlocked,
   );
 
   roomLadders.forEach((ladder) => {
@@ -481,7 +481,7 @@ export function renderButtons() {
       }
       mapEl.appendChild(buttonImg);
       buttonElements.push(buttonImg);
-    }
+    },
   );
 }
 
@@ -504,7 +504,7 @@ function handleButtonAction(action, opts = {}) {
     if (!visitedRooms[room.mapnum][room.floor]) {
       visitedRooms[room.mapnum][room.floor] = Array.from(
         { length: gridSize },
-        () => Array(gridSize).fill(false)
+        () => Array(gridSize).fill(false),
       );
     }
     visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
@@ -587,8 +587,8 @@ export function renderStandItems() {
     const standY = hasStandAt(roomKey, x, yStored)
       ? yStored
       : hasStandAt(roomKey, x, yStored - 1)
-      ? yStored - 1
-      : yStored;
+        ? yStored - 1
+        : yStored;
     showStandItemImage(roomKey, x, standY, item);
   });
 }
@@ -779,7 +779,7 @@ function openStandItemSelect(roomKey, standX, standY) {
   // unlockedかつ台座に置かれていないアイテムのみ表示
   const placedIds = getPlacedItemIds();
   const unlockedItems = itemList.filter(
-    (item) => item.unlocked && !placedIds.includes(item.id)
+    (item) => item.unlocked && !placedIds.includes(item.id),
   );
   unlockedItems.forEach((item, idx) => {
     const cell = document.createElement("div");
@@ -946,7 +946,7 @@ function showButtonModal(roomKey, x, y, color = "blue") {
     for (let x = 1; x <= 3; x++) {
       for (let y = 1; y <= 3; y++) {
         const idx = blockedTiles[roomKey].findIndex(
-          (t) => t.x === x && t.y === y && t.type === "magiccircle"
+          (t) => t.x === x && t.y === y && t.type === "magiccircle",
         );
         if (block) {
           if (idx === -1)
@@ -962,7 +962,7 @@ function showButtonModal(roomKey, x, y, color = "blue") {
 export function showBoxModal(
   roomKey = `${room.x},${room.y}`,
   boxX = position.x,
-  boxY = position.y
+  boxY = position.y,
 ) {
   // 既に開封済みなら、2Fの紙（あれば）を表示して終了
   if (isOpenedBox(roomKey, boxX, boxY)) {
@@ -986,7 +986,7 @@ export function showBoxModal(
 export function showBoxChallenge(
   roomKey = `${room.x},${room.y}`,
   boxX = position.x,
-  boxY = position.y
+  boxY = position.y,
 ) {
   // 既存モーダルがあれば削除
   let old = document.getElementById("box-modal");
@@ -1095,25 +1095,25 @@ export function showBoxChallenge(
         unlockItem("tsubo");
         showModal(
           "img/item/tsubo.png",
-          "宝箱が開いた！\n中から「水瓶」を手に入れた！"
+          "宝箱が開いた！\n中から「水瓶」を手に入れた！",
         );
       } else if (roomKey === "0,2,1,1") {
         unlockItem("teppan");
         showModal(
           "img/item/teppan.png",
-          "宝箱が開いた！\n中から「錆びた鉄板」を手に入れた！"
+          "宝箱が開いた！\n中から「錆びた鉄板」を手に入れた！",
         );
       } else if (roomKey === "4,2,1,1") {
         unlockItem("yasuri");
         showModal(
           "img/item/yasuri.png",
-          "宝箱が開いた！\n中から「やすり」を手に入れた！"
+          "宝箱が開いた！\n中から「やすり」を手に入れた！",
         );
       } else if (roomKey === "2,0,1,1") {
         unlockItem("chokinbako");
         showModal(
           "img/item/chokinbako.png",
-          "宝箱が開いた！\n中から「貯金箱」を手に入れた！"
+          "宝箱が開いた！\n中から「貯金箱」を手に入れた！",
         );
       } else if (boxPaperRewards[roomKey]) {
         const paperImg = boxPaperRewards[roomKey];
@@ -1131,6 +1131,7 @@ export function showBoxChallenge(
               if (isCorrect) {
                 // 正解: 2F→3Fハシゴを出現させる
                 unlockLadder("1,1,2,1");
+
                 renderLadder();
                 showBottomModal({
                   text: "どこかで何かが変化したようだ。",
@@ -1153,7 +1154,7 @@ export function showBoxChallenge(
                   close: () => {},
                 });
               }
-            }
+            },
           );
         } else {
           showModal(paperImg, "宝箱が開いた！中には一枚の紙が貼られている。");
@@ -1162,7 +1163,7 @@ export function showBoxChallenge(
         unlockItem("redkey");
         showModal(
           "img/item/redkey.png",
-          "宝箱が開いた！\n中から「赤い鍵」を手に入れた！"
+          "宝箱が開いた！\n中から「赤い鍵」を手に入れた！",
         );
       } else {
         alert("正解！");
@@ -1203,7 +1204,7 @@ export function render() {
     const currentFloorData =
       visitedRooms[room.mapnum]?.[room.floor] ||
       Array.from({ length: currentGridSize }, () =>
-        Array(currentGridSize).fill(false)
+        Array(currentGridSize).fill(false),
       );
     // y=0が下、yが大きいほど上になるよう逆順で描画
     for (let y = currentGridSize - 1; y >= 0; y--) {

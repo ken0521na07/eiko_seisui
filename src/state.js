@@ -17,7 +17,7 @@ function initializeVisitedRooms() {
   if (!visitedRooms[room.mapnum][room.floor])
     visitedRooms[room.mapnum][room.floor] = Array.from(
       { length: getRoomGridSize(room.floor) },
-      () => Array(getRoomGridSize(room.floor)).fill(false)
+      () => Array(getRoomGridSize(room.floor)).fill(false),
     );
   visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
 }
@@ -58,7 +58,7 @@ export function getRoomKey(
   x = room.x,
   y = room.y,
   floor = room.floor,
-  mapnum = room.mapnum
+  mapnum = room.mapnum,
 ) {
   return `${x},${y},${floor},${mapnum}`;
 }

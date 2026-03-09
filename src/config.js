@@ -27,13 +27,14 @@ export const ladders = [
     unlocked: false,
     direction: "up",
   },
+
   {
     roomKey: "0,0,3,1",
     x: 2,
     y: 3,
     dest: { x: 1, y: 1, floor: 2, mapnum: 1 },
     direction: "down",
-    unlocked: false,
+    unlocked: true,
   },
   {
     roomKey: "0,0,2,2",
