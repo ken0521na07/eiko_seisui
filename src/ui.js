@@ -487,10 +487,11 @@ export function renderButtons() {
 
 function handleButtonAction(action, opts = {}) {
   if (action === "warp") {
-    // ワープ先の指定（"x,y,floor,mapnum"）
+    // ワープ先の指定（"x,y,floor,mapnum,era"）
     const { targetRoomKey } = opts;
-    const destKey = targetRoomKey || "0,0,2,2"; // 互換のためデフォルト維持
-    const [dx, dy, dfloor, dmapnum] = destKey.split(",").map(Number);
+    const destKey = targetRoomKey || "0,0,2,2,-1"; // 互換のためデフォルト維持
+    const [dx, dy, dfloor, dmapnum, dera] = destKey.split(",").map(Number);
+    room.era = dera !== undefined ? dera : -1;
     room.mapnum = dmapnum;
     room.floor = dfloor;
     room.x = dx;
@@ -500,14 +501,15 @@ function handleButtonAction(action, opts = {}) {
     position.y = 2;
     // 訪問済み管理
     const gridSize = getRoomGridSize(room.floor);
-    if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
-    if (!visitedRooms[room.mapnum][room.floor]) {
-      visitedRooms[room.mapnum][room.floor] = Array.from(
+    if (!visitedRooms[room.era]) visitedRooms[room.era] = {};
+    if (!visitedRooms[room.era][room.mapnum]) visitedRooms[room.era][room.mapnum] = {};
+    if (!visitedRooms[room.era][room.mapnum][room.floor]) {
+      visitedRooms[room.era][room.mapnum][room.floor] = Array.from(
         { length: gridSize },
         () => Array(gridSize).fill(false),
       );
     }
-    visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
+    visitedRooms[room.era][room.mapnum][room.floor][room.y][room.x] = true;
     // 再描画と保存
     renderGame();
     saveGameState(position, room, visitedRooms, magicCircleStates);
@@ -837,14 +839,14 @@ function showStandPlaceResult(roomKey, standX, standY, item) {
   // 台座の一つ上のマスにアイテム画像を表示
   showStandItemImage(roomKey, standX, standY, item);
 
-  // 特定条件チェック: "2,2,1,1"にコイン、"3,1,1,1"に鏡
+  // 特定条件チェック: "2,2,1,1,-1"にコイン、"3,1,1,1,-1"に鏡
   const checkSpecialCondition = () => {
     const hasCoinAt22 =
-      standItems["2,2,1,1"] &&
-      Object.values(standItems["2,2,1,1"]).some((i) => i.id === "coin");
+      standItems["2,2,1,1,-1"] &&
+      Object.values(standItems["2,2,1,1,-1"]).some((i) => i.id === "coin");
     const hasMirrorAt31 =
-      standItems["3,1,1,1"] &&
-      Object.values(standItems["3,1,1,1"]).some((i) => i.id === "mirror");
+      standItems["3,1,1,1,-1"] &&
+      Object.values(standItems["3,1,1,1,-1"]).some((i) => i.id === "mirror");
     return hasCoinAt22 && hasMirrorAt31;
   };
 
@@ -855,7 +857,7 @@ function showStandPlaceResult(roomKey, standX, standY, item) {
       // 条件達成時に追加メッセージ
       if (checkSpecialCondition()) {
         // ハシゴを出現させる
-        unlockLadder("1,1,1,1");
+        unlockLadder("1,1,1,1,-1");
         renderLadder();
 
         showBottomModal({
@@ -863,10 +865,10 @@ function showStandPlaceResult(roomKey, standX, standY, item) {
           close: () => {},
         });
       }
-      // 新条件: 「1,2,1,2」の台座に「水瓶」を置いたら、
-      //         「3,1,0,2」のハシゴを解放し、テキストを表示
-      if (roomKey === "1,2,1,2" && item.id === "tsubo") {
-        unlockLadder("3,1,0,2");
+      // 新条件: 「1,2,1,2,-1」の台座に「水瓶」を置いたら、
+      //         「3,1,0,2,-1」のハシゴを解放し、テキストを表示
+      if (roomKey === "1,2,1,2,-1" && item.id === "tsubo") {
+        unlockLadder("3,1,0,2,-1");
         renderLadder();
         showBottomModal({
           text: "どこかで何かが変化したようだ",
@@ -903,7 +905,7 @@ function showButtonModal(roomKey, x, y, color = "blue") {
       }, 5000);
       // 3,3部屋の中央に貯金箱が置かれている場合の特別演出
       if (
-        roomKey === "3,3,1,1" &&
+        roomKey === "3,3,1,1,-1" &&
         color === "red" &&
         standItems[roomKey] &&
         standItems[roomKey]["2,2"] &&
@@ -1091,25 +1093,25 @@ export function showBoxChallenge(
     if (answer === correct) {
       setOpenedBox(roomKey, boxX, boxY);
       renderBoxes();
-      if (roomKey === "2,4,1,1") {
+      if (roomKey === "2,4,1,1,-1") {
         unlockItem("tsubo");
         showModal(
           "img/item/tsubo.png",
           "宝箱が開いた！\n中から「水瓶」を手に入れた！",
         );
-      } else if (roomKey === "0,2,1,1") {
+      } else if (roomKey === "0,2,1,1,-1") {
         unlockItem("teppan");
         showModal(
           "img/item/teppan.png",
           "宝箱が開いた！\n中から「錆びた鉄板」を手に入れた！",
         );
-      } else if (roomKey === "4,2,1,1") {
+      } else if (roomKey === "4,2,1,1,-1") {
         unlockItem("yasuri");
         showModal(
           "img/item/yasuri.png",
           "宝箱が開いた！\n中から「やすり」を手に入れた！",
         );
-      } else if (roomKey === "2,0,1,1") {
+      } else if (roomKey === "2,0,1,1,-1") {
         unlockItem("chokinbako");
         showModal(
           "img/item/chokinbako.png",
@@ -1130,7 +1132,7 @@ export function showBoxChallenge(
             () => {
               if (isCorrect) {
                 // 正解: 2F→3Fハシゴを出現させる
-                unlockLadder("1,1,2,1");
+                unlockLadder("1,1,2,1,-1");
 
                 renderLadder();
                 showBottomModal({
@@ -1140,7 +1142,7 @@ export function showBoxChallenge(
               } else {
                 // 不正解: 2Fの宝箱を全てリセット
                 const opened = getOpenedBoxes();
-                const boxKeys2F = ["1,2,2,1", "0,1,2,1", "2,1,2,1", "1,0,2,1"];
+                const boxKeys2F = ["1,2,2,1,-1", "0,1,2,1,-1", "2,1,2,1,-1", "1,0,2,1,-1"];
                 boxKeys2F.forEach((key) => {
                   if (opened[key]) {
                     delete opened[key];
@@ -1159,7 +1161,7 @@ export function showBoxChallenge(
         } else {
           showModal(paperImg, "宝箱が開いた！中には一枚の紙が貼られている。");
         }
-      } else if (roomKey === "0,0,3,1") {
+      } else if (roomKey === "0,0,3,1,-1") {
         unlockItem("redkey");
         showModal(
           "img/item/redkey.png",
@@ -1202,7 +1204,7 @@ export function render() {
     minimap.style.gridTemplateColumns = `repeat(${currentGridSize}, 18px)`;
     minimap.style.gridTemplateRows = `repeat(${currentGridSize}, 18px)`;
     const currentFloorData =
-      visitedRooms[room.mapnum]?.[room.floor] ||
+      visitedRooms[room.era]?.[room.mapnum]?.[room.floor] ||
       Array.from({ length: currentGridSize }, () =>
         Array(currentGridSize).fill(false),
       );

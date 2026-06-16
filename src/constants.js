@@ -12,23 +12,25 @@ export const SAFE_MARGIN = 20;
 // プレイ可能領域サイズ（px）
 export const PLAYABLE_PX = MAP_PX - SAFE_MARGIN * 2; // 300
 
-// フロアごとの部屋数定義 {mapnum: {floor: roomCount}}
+// フロアごとの部屋数定義 {era: {mapnum: {floor: roomCount}}}
 export const floorGridSizes = {
-  1: {
-    // mapnum=1: 1F=5x5, 2F=3x3, 3F=1x1
-    1: 5,
-    2: 3,
-    3: 1,
-  },
-  2: {
-    // mapnum=2: 0F=5x5, 1F=3x3, 2F=1x1
-    0: 5,
-    1: 3,
-    2: 1,
-  },
-  3: {
-    // mapnum=3: 1Fのみ、1x1（部屋サイズは同様）
-    1: 1,
+  "-1": {
+    1: {
+      // mapnum=1: 1F=5x5, 2F=3x3, 3F=1x1
+      1: 5,
+      2: 3,
+      3: 1,
+    },
+    2: {
+      // mapnum=2: 0F=5x5, 1F=3x3, 2F=1x1
+      0: 5,
+      1: 3,
+      2: 1,
+    },
+    3: {
+      // mapnum=3: 1Fのみ、1x1（部屋サイズは同様）
+      1: 1,
+    },
   },
 };
 

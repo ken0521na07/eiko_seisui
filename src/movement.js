@@ -54,7 +54,7 @@ export function move(dir) {
     room.y < roomCount - 1
   ) {
     // 2F中央(2,2,2,1)への進入規制: 下(2,1)から上へ
-    if (room.floor === 2 && room.mapnum === 1 && room.x === 2 && room.y === 1) {
+    if (room.era === -1 && room.floor === 2 && room.mapnum === 1 && room.x === 2 && room.y === 1) {
       const hasRedKey = itemList.some(
         (item) => item.id === "redkey" && item.unlocked
       );
@@ -87,7 +87,7 @@ export function move(dir) {
     handleRoomEntryOrFall();
   } else if (nextY < 0 && position.x === 2 && dy === -1 && room.y > 0) {
     // map2 1F (2,0,1,2)への進入規制: 上(2,1)から下へ
-    if (room.floor === 1 && room.mapnum === 2 && room.x === 2 && room.y === 1) {
+    if (room.era === -1 && room.floor === 1 && room.mapnum === 2 && room.x === 2 && room.y === 1) {
       showBottomModal({
         text: "通路に固い扉がある。\n条件を満たさないと開かなさそうだ。",
       });
@@ -107,7 +107,7 @@ export function move(dir) {
     room.x < roomCount - 1
   ) {
     // 2F中央(2,2,2,1)への進入規制: 左(1,2)から右へ
-    if (room.floor === 2 && room.mapnum === 1 && room.x === 1 && room.y === 2) {
+    if (room.era === -1 && room.floor === 2 && room.mapnum === 1 && room.x === 1 && room.y === 2) {
       const hasRedKey = itemList.some(
         (item) => item.id === "redkey" && item.unlocked
       );
@@ -132,7 +132,7 @@ export function move(dir) {
       }
     }
     // map2 1F (2,0,1,2)への進入規制: 左(1,0)から右へ
-    if (room.floor === 1 && room.mapnum === 2 && room.x === 1 && room.y === 0) {
+    if (room.era === -1 && room.floor === 1 && room.mapnum === 2 && room.x === 1 && room.y === 0) {
       showBottomModal({
         text: "通路に固い扉がある。\n条件を満たさないと開かなさそうだ。",
       });
@@ -195,16 +195,18 @@ export function move(dir) {
           ? "ハシゴを降りますか？"
           : "ハシゴを上りますか？",
       yes: () => {
+        const destEra = activeLadder.dest.era ?? -1;
         // ハシゴでフロア移動する場合、map2の1Fの訪問フラグをすべてクリア
-        if (activeLadder.dest.mapnum === 2) {
-          if (visitedRooms[2] && visitedRooms[2][1]) {
+        if (destEra === -1 && activeLadder.dest.mapnum === 2) {
+          if (visitedRooms[destEra] && visitedRooms[destEra][2] && visitedRooms[destEra][2][1]) {
             const gridSize1F = getRoomGridSize(1, 2);
-            visitedRooms[2][1] = Array.from({ length: gridSize1F }, () =>
+            visitedRooms[destEra][2][1] = Array.from({ length: gridSize1F }, () =>
               Array(gridSize1F).fill(false)
             );
           }
         }
         // 目的地に移動
+        room.era = destEra;
         room.floor = activeLadder.dest.floor;
         room.x = activeLadder.dest.x;
         room.y = activeLadder.dest.y;
@@ -227,17 +229,18 @@ export function move(dir) {
 
 function handleRoomEntryOrFall() {
   const gridSizeCurrent = getRoomGridSize(room.floor);
-  if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
-  if (!visitedRooms[room.mapnum][room.floor]) {
-    visitedRooms[room.mapnum][room.floor] = Array.from(
+  if (!visitedRooms[room.era]) visitedRooms[room.era] = {};
+  if (!visitedRooms[room.era][room.mapnum]) visitedRooms[room.era][room.mapnum] = {};
+  if (!visitedRooms[room.era][room.mapnum][room.floor]) {
+    visitedRooms[room.era][room.mapnum][room.floor] = Array.from(
       { length: gridSizeCurrent },
       () => Array(gridSizeCurrent).fill(false)
     );
   }
-  const alreadyVisited = visitedRooms[room.mapnum][room.floor][room.y][room.x];
+  const alreadyVisited = visitedRooms[room.era][room.mapnum][room.floor][room.y][room.x];
 
   // mapnum:2 の 1F で二度目の入室なら落下
-  if (room.mapnum === 2 && room.floor === 1 && alreadyVisited) {
+  if (room.era === -1 && room.mapnum === 2 && room.floor === 1 && alreadyVisited) {
     // 一時的に黒背景を表示し、操作無効化
     setControlsDisabled(true);
     setRoomBlackout(true);
@@ -255,13 +258,14 @@ function handleRoomEntryOrFall() {
       position.y = 2;
 
       // 目的地の訪問管理
-      if (!visitedRooms[room.mapnum][room.floor]) {
-        visitedRooms[room.mapnum][room.floor] = Array.from(
+      if (!visitedRooms[room.era][room.mapnum]) visitedRooms[room.era][room.mapnum] = {};
+      if (!visitedRooms[room.era][room.mapnum][room.floor]) {
+        visitedRooms[room.era][room.mapnum][room.floor] = Array.from(
           { length: gridSizeBelow },
           () => Array(gridSizeBelow).fill(false)
         );
       }
-      visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
+      visitedRooms[room.era][room.mapnum][room.floor][room.y][room.x] = true;
 
       // 黒背景解除・操作復帰・再描画・メッセージ表示
       setRoomBlackout(false);
@@ -272,7 +276,7 @@ function handleRoomEntryOrFall() {
     }, 500);
   } else {
     // 初回入室の場合は訪問フラグを立てて通常描画
-    visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
+    visitedRooms[room.era][room.mapnum][room.floor][room.y][room.x] = true;
     renderGame();
     saveGameState(position, room, visitedRooms, magicCircleStates);
   }

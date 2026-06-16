@@ -6,20 +6,21 @@ import { floorGridSizes, gridSize } from "./constants.js";
 export const position = { x: 2, y: 2 };
 
 // 現在の部屋座標
-export const room = { x: 0, y: 0, floor: 1, mapnum: 1 };
+export const room = { x: 0, y: 0, floor: 1, mapnum: 1, era: -1 };
 
-// 通過した部屋を記録 (4次元: [mapnum][floor][y][x])
+// 通過した部屋を記録 (5次元: [era][mapnum][floor][y][x])
 export const visitedRooms = {};
 
 // 初期位置を記録
 function initializeVisitedRooms() {
-  if (!visitedRooms[room.mapnum]) visitedRooms[room.mapnum] = {};
-  if (!visitedRooms[room.mapnum][room.floor])
-    visitedRooms[room.mapnum][room.floor] = Array.from(
+  if (!visitedRooms[room.era]) visitedRooms[room.era] = {};
+  if (!visitedRooms[room.era][room.mapnum]) visitedRooms[room.era][room.mapnum] = {};
+  if (!visitedRooms[room.era][room.mapnum][room.floor])
+    visitedRooms[room.era][room.mapnum][room.floor] = Array.from(
       { length: getRoomGridSize(room.floor) },
       () => Array(getRoomGridSize(room.floor)).fill(false),
     );
-  visitedRooms[room.mapnum][room.floor][room.y][room.x] = true;
+  visitedRooms[room.era][room.mapnum][room.floor][room.y][room.x] = true;
 }
 
 // ゲーム状態を復元する関数（localStorage から読み込む）
@@ -33,10 +34,11 @@ export function restoreGameState(savedState) {
     room.y = savedState.room.y;
     room.floor = savedState.room.floor;
     room.mapnum = savedState.room.mapnum;
+    room.era = savedState.room.era !== undefined ? savedState.room.era : -1;
   }
   if (savedState.visitedRooms) {
-    Object.keys(savedState.visitedRooms).forEach((mapnum) => {
-      visitedRooms[mapnum] = savedState.visitedRooms[mapnum];
+    Object.keys(savedState.visitedRooms).forEach((era) => {
+      visitedRooms[era] = savedState.visitedRooms[era];
     });
   }
   if (savedState.magicCircleStates) {
@@ -49,8 +51,13 @@ export function restoreGameState(savedState) {
 initializeVisitedRooms();
 
 // 現在のフロアの部屋数を取得
-export function getRoomGridSize(floor = room.floor, mapnum = room.mapnum) {
-  return (floorGridSizes[mapnum] && floorGridSizes[mapnum][floor]) || 5;
+export function getRoomGridSize(floor = room.floor, mapnum = room.mapnum, era = room.era) {
+  return (
+    (floorGridSizes[era] &&
+      floorGridSizes[era][mapnum] &&
+      floorGridSizes[era][mapnum][floor]) ||
+    5
+  );
 }
 
 // 部屋キー生成ヘルパー関数
@@ -59,8 +66,9 @@ export function getRoomKey(
   y = room.y,
   floor = room.floor,
   mapnum = room.mapnum,
+  era = room.era,
 ) {
-  return `${x},${y},${floor},${mapnum}`;
+  return `${x},${y},${floor},${mapnum},${era}`;
 }
 
 // 魔法陣の状態を管理（roomKey -> state）

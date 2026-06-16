@@ -1,237 +1,237 @@
 // ===== ゲームデータ・コンフィグ =====
 
 // ハシゴ配置データ
-// roomKey: ハシゴがある部屋, x/y: ハシゴの座標, dest: 移動先 {x, y, floor, mapnum}, unlocked: 解放状態
+// roomKey: ハシゴがある部屋, x/y: ハシゴの座標, dest: 移動先 {x, y, floor, mapnum, era}, unlocked: 解放状態
 export const ladders = [
   {
-    roomKey: "1,1,1,1",
+    roomKey: "1,1,1,1,-1",
     x: 2,
     y: 3,
-    dest: { x: 0, y: 0, floor: 2, mapnum: 1 },
+    dest: { x: 0, y: 0, floor: 2, mapnum: 1, era: -1 },
     unlocked: false,
     direction: "up",
   },
   {
-    roomKey: "0,0,2,1",
+    roomKey: "0,0,2,1,-1",
     x: 2,
     y: 3,
-    dest: { x: 1, y: 1, floor: 1, mapnum: 1 },
+    dest: { x: 1, y: 1, floor: 1, mapnum: 1, era: -1 },
     unlocked: true,
     direction: "down",
   },
   {
-    roomKey: "1,1,2,1",
+    roomKey: "1,1,2,1,-1",
     x: 2,
     y: 3,
-    dest: { x: 0, y: 0, floor: 3, mapnum: 1 },
+    dest: { x: 0, y: 0, floor: 3, mapnum: 1, era: -1 },
     unlocked: false,
     direction: "up",
   },
 
   {
-    roomKey: "0,0,3,1",
+    roomKey: "0,0,3,1,-1",
     x: 2,
     y: 3,
-    dest: { x: 1, y: 1, floor: 2, mapnum: 1 },
+    dest: { x: 1, y: 1, floor: 2, mapnum: 1, era: -1 },
     direction: "down",
     unlocked: true,
   },
   {
-    roomKey: "0,0,2,2",
+    roomKey: "0,0,2,2,-1",
     x: 2,
     y: 3,
-    dest: { x: 1, y: 2, floor: 1, mapnum: 2 },
+    dest: { x: 1, y: 2, floor: 1, mapnum: 2, era: -1 },
     unlocked: true,
     direction: "down",
   },
   {
-    roomKey: "1,2,1,2",
+    roomKey: "1,2,1,2,-1",
     x: 2,
     y: 3,
-    dest: { x: 0, y: 0, floor: 2, mapnum: 2 },
+    dest: { x: 0, y: 0, floor: 2, mapnum: 2, era: -1 },
     unlocked: true,
     direction: "up",
   },
   {
-    roomKey: "1,2,1,2",
+    roomKey: "1,2,1,2,-1",
     x: 2,
     y: 1,
-    dest: { x: 2, y: 3, floor: 0, mapnum: 2 },
+    dest: { x: 2, y: 3, floor: 0, mapnum: 2, era: -1 },
     unlocked: false,
     direction: "down",
   },
   {
-    roomKey: "2,3,0,2",
+    roomKey: "2,3,0,2,-1",
     x: 2,
     y: 1,
-    dest: { x: 1, y: 2, floor: 1, mapnum: 2 },
+    dest: { x: 1, y: 2, floor: 1, mapnum: 2, era: -1 },
     unlocked: false,
     direction: "up",
   },
   {
-    roomKey: "3,1,0,2",
+    roomKey: "3,1,0,2,-1",
     x: 2,
     y: 3,
-    dest: { x: 2, y: 0, floor: 1, mapnum: 2 },
+    dest: { x: 2, y: 0, floor: 1, mapnum: 2, era: -1 },
     unlocked: false,
     direction: "up",
   },
 ];
 
 // 石板配置データ: { [roomKey]: [{ x, y, img }] }
-// roomKey形式: "x,y,floor,mapnum"
+// roomKey形式: "x,y,floor,mapnum,era"
 export const stoneboards = {
-  "1,0,1,1": [{ x: 2, y: 0, img: "nazo_1-1-22.png", direction: "down" }],
-  "3,0,1,1": [{ x: 2, y: 0, img: "nazo_1-1-24.png", direction: "down" }],
-  "1,4,1,1": [{ x: 2, y: 4, img: "nazo_1-1-2.png", direction: "up" }],
-  "3,4,1,1": [{ x: 2, y: 4, img: "nazo_1-1-4.png", direction: "up" }],
-  "0,1,1,1": [{ x: 0, y: 2, img: "nazo_1-1-16.png", direction: "left" }],
-  "0,3,1,1": [{ x: 0, y: 2, img: "nazo_1-1-6.png", direction: "left" }],
-  "4,1,1,1": [{ x: 4, y: 2, img: "nazo_1-1-20.png", direction: "right" }],
-  "4,3,1,1": [{ x: 4, y: 2, img: "nazo_1-1-10.png", direction: "right" }],
-  "1,1,1,1": [{ x: 4, y: 4, img: "nazo_1-1-17.png", direction: "right" }],
-  "1,1,2,1": [{ x: 4, y: 4, img: "nazo_1-2-5.png", direction: "right" }],
-  "0,0,3,1": [{ x: 2, y: 4, img: "nazo_1-3-1A.png", direction: "up" }],
+  "1,0,1,1,-1": [{ x: 2, y: 0, img: "nazo_1-1-22.png", direction: "down" }],
+  "3,0,1,1,-1": [{ x: 2, y: 0, img: "nazo_1-1-24.png", direction: "down" }],
+  "1,4,1,1,-1": [{ x: 2, y: 4, img: "nazo_1-1-2.png", direction: "up" }],
+  "3,4,1,1,-1": [{ x: 2, y: 4, img: "nazo_1-1-4.png", direction: "up" }],
+  "0,1,1,1,-1": [{ x: 0, y: 2, img: "nazo_1-1-16.png", direction: "left" }],
+  "0,3,1,1,-1": [{ x: 0, y: 2, img: "nazo_1-1-6.png", direction: "left" }],
+  "4,1,1,1,-1": [{ x: 4, y: 2, img: "nazo_1-1-20.png", direction: "right" }],
+  "4,3,1,1,-1": [{ x: 4, y: 2, img: "nazo_1-1-10.png", direction: "right" }],
+  "1,1,1,1,-1": [{ x: 4, y: 4, img: "nazo_1-1-17.png", direction: "right" }],
+  "1,1,2,1,-1": [{ x: 4, y: 4, img: "nazo_1-2-5.png", direction: "right" }],
+  "0,0,3,1,-1": [{ x: 2, y: 4, img: "nazo_1-3-1A.png", direction: "up" }],
 
-  "0,0,2,2": [
+  "0,0,2,2,-1": [
     { x: 2, y: 4, img: "nazo_2-2-1A.png", direction: "up" },
     { x: 4, y: 2, img: "nazo_2-2-1B.png", direction: "right", frame: "window" },
   ],
-  "2,2,1,2": [{ x: 4, y: 2, img: "nazo_2-1-3.png", direction: "right" }],
-  "1,0,1,2": [
+  "2,2,1,2,-1": [{ x: 4, y: 2, img: "nazo_2-1-3.png", direction: "right" }],
+  "1,0,1,2,-1": [
     { x: 2, y: 0, img: "nazo_2-1-8.png", direction: "down", frame: "window" },
   ],
-  "3,1,0,2": [{ x: 4, y: 4, img: "nazo_2-B1-19.png", direction: "right" }],
+  "3,1,0,2,-1": [{ x: 4, y: 4, img: "nazo_2-B1-19.png", direction: "right" }],
 };
 
 // 特別な魔法陣（白）配置データ: { [roomKey]: [{ x, y, width, height }] }
 export const magicCircles = {
-  "1,3,1,1": [{ x: 2, y: 2, width: 3, height: 3, state: "white" }],
-  "3,3,1,1": [{ x: 2, y: 2, width: 3, height: 3, state: "white" }],
+  "1,3,1,1,-1": [{ x: 2, y: 2, width: 3, height: 3, state: "white" }],
+  "3,3,1,1,-1": [{ x: 2, y: 2, width: 3, height: 3, state: "white" }],
 };
 
 // ボタン配置データ: { [roomKey]: [{ x, y }] }
 export const buttons_data = {
-  "1,3,1,1": [{ x: 4, y: 0, color: "blue" }],
-  "3,3,1,1": [{ x: 4, y: 0, color: "red" }],
+  "1,3,1,1,-1": [{ x: 4, y: 0, color: "blue" }],
+  "3,3,1,1,-1": [{ x: 4, y: 0, color: "red" }],
   // map1 → map2 ワープボタン（隣のピラミッドへ）
-  "2,2,2,1": [
+  "2,2,2,1,-1": [
     {
       x: 0,
       y: 0,
       img: "img/UI/button_2.png",
       action: "warp",
       // ワープ先: map2 2F 左下の部屋
-      targetRoomKey: "0,0,2,2",
+      targetRoomKey: "0,0,2,2,-1",
     },
   ],
   // map2 → map1 ワープボタン（隣のピラミッドへ）
-  "0,0,2,2": [
+  "0,0,2,2,-1": [
     {
       x: 0,
       y: 0,
       img: "img/UI/button_1.png",
       action: "warp",
       // ワープ先: map1 2F 中央の部屋
-      targetRoomKey: "2,2,2,1",
+      targetRoomKey: "2,2,2,1,-1",
     },
   ],
   // map2 0F: (2,3,0,2) にボタン追加（ハシゴ解放）
-  "2,3,0,2": [
+  "2,3,0,2,-1": [
     {
       x: 0,
       y: 0,
       img: "img/UI/button_up.png",
       action: "unlockLadders",
-      targets: ["2,3,0,2", "1,2,1,2"],
+      targets: ["2,3,0,2,-1", "1,2,1,2,-1"],
     },
   ],
-  "2,0,1,2": [
+  "2,0,1,2,-1": [
     {
       x: 0,
       y: 0,
       img: "img/UI/button_3.png",
       action: "warp",
-      targetRoomKey: "0,0,1,3",
+      targetRoomKey: "0,0,1,3,-1",
     },
   ],
-  "0,0,1,3": [
+  "0,0,1,3,-1": [
     {
       x: 0,
       y: 0,
       img: "img/UI/button_2.png",
       action: "warp",
-      targetRoomKey: "2,0,1,2",
+      targetRoomKey: "2,0,1,2,-1",
     },
   ],
 };
 
 // 普通の魔法陣（mahoujin.png）配置データ
 export const normalMagicCircles = {
-  "0,0,1,1": [{ width: 3, height: 3 }],
-  "0,2,1,1": [{ width: 3, height: 3 }],
-  "0,4,1,1": [{ width: 3, height: 3 }],
-  "1,1,1,1": [{ width: 3, height: 3 }],
-  "2,0,1,1": [{ width: 3, height: 3 }],
-  "2,2,1,1": [{ width: 3, height: 3 }],
-  "2,4,1,1": [{ width: 3, height: 3 }],
-  "4,0,1,1": [{ width: 3, height: 3 }],
-  "4,2,1,1": [{ width: 3, height: 3 }],
-  "4,4,1,1": [{ width: 3, height: 3 }],
+  "0,0,1,1,-1": [{ width: 3, height: 3 }],
+  "0,2,1,1,-1": [{ width: 3, height: 3 }],
+  "0,4,1,1,-1": [{ width: 3, height: 3 }],
+  "1,1,1,1,-1": [{ width: 3, height: 3 }],
+  "2,0,1,1,-1": [{ width: 3, height: 3 }],
+  "2,2,1,1,-1": [{ width: 3, height: 3 }],
+  "2,4,1,1,-1": [{ width: 3, height: 3 }],
+  "4,0,1,1,-1": [{ width: 3, height: 3 }],
+  "4,2,1,1,-1": [{ width: 3, height: 3 }],
+  "4,4,1,1,-1": [{ width: 3, height: 3 }],
   // 2F: 1,1 にオレンジの魔法陣を配置
-  "1,1,2,1": [{ width: 3, height: 3, img: "img/UI/mahoujin_orange.png" }],
-  "3,1,0,2": [{ width: 3, height: 3, img: "img/UI/mahoujin_star.png" }],
+  "1,1,2,1,-1": [{ width: 3, height: 3, img: "img/UI/mahoujin_orange.png" }],
+  "3,1,0,2,-1": [{ width: 3, height: 3, img: "img/UI/mahoujin_star.png" }],
 };
 
 // 台座配置データ: { [roomKey]: [{ x, y }] }
 export const stands = {
-  "0,0,1,1": [{ x: 0, y: 0 }],
-  "2,0,1,1": [{ x: 0, y: 0 }],
-  "4,0,1,1": [{ x: 0, y: 0 }],
-  "1,1,1,1": [{ x: 0, y: 0 }],
-  "3,1,1,1": [{ x: 0, y: 0 }],
-  "0,2,1,1": [{ x: 0, y: 0 }],
-  "2,2,1,1": [{ x: 0, y: 0 }],
-  "4,2,1,1": [{ x: 0, y: 0 }],
-  "1,3,1,1": [{ x: 2, y: 2 }],
-  "3,3,1,1": [{ x: 2, y: 2 }],
-  "0,4,1,1": [{ x: 0, y: 0 }],
-  "2,4,1,1": [{ x: 0, y: 0 }],
-  "4,4,1,1": [{ x: 0, y: 0 }],
-  "0,0,1,2": [{ x: 0, y: 0 }],
-  "0,1,1,2": [{ x: 0, y: 0 }],
-  "0,2,1,2": [{ x: 0, y: 0 }],
-  "1,0,1,2": [{ x: 0, y: 0 }],
-  "1,1,1,2": [{ x: 0, y: 0 }],
-  "1,2,1,2": [{ x: 0, y: 0 }],
-  "2,1,1,2": [{ x: 0, y: 0 }],
-  "2,2,1,2": [{ x: 0, y: 0 }],
+  "0,0,1,1,-1": [{ x: 0, y: 0 }],
+  "2,0,1,1,-1": [{ x: 0, y: 0 }],
+  "4,0,1,1,-1": [{ x: 0, y: 0 }],
+  "1,1,1,1,-1": [{ x: 0, y: 0 }],
+  "3,1,1,1,-1": [{ x: 0, y: 0 }],
+  "0,2,1,1,-1": [{ x: 0, y: 0 }],
+  "2,2,1,1,-1": [{ x: 0, y: 0 }],
+  "4,2,1,1,-1": [{ x: 0, y: 0 }],
+  "1,3,1,1,-1": [{ x: 2, y: 2 }],
+  "3,3,1,1,-1": [{ x: 2, y: 2 }],
+  "0,4,1,1,-1": [{ x: 0, y: 0 }],
+  "2,4,1,1,-1": [{ x: 0, y: 0 }],
+  "4,4,1,1,-1": [{ x: 0, y: 0 }],
+  "0,0,1,2,-1": [{ x: 0, y: 0 }],
+  "0,1,1,2,-1": [{ x: 0, y: 0 }],
+  "0,2,1,2,-1": [{ x: 0, y: 0 }],
+  "1,0,1,2,-1": [{ x: 0, y: 0 }],
+  "1,1,1,2,-1": [{ x: 0, y: 0 }],
+  "1,2,1,2,-1": [{ x: 0, y: 0 }],
+  "2,1,1,2,-1": [{ x: 0, y: 0 }],
+  "2,2,1,2,-1": [{ x: 0, y: 0 }],
 };
 
 // 宝箱配置データ: { [roomKey]: [{ x, y, img, answer }] }
 export const boxes = {
-  "2,4,1,1": [{ x: 2, y: 4, img: "img/nazo/nazo_1-1-3.png", answer: "cbtf" }],
-  "0,2,1,1": [{ x: 0, y: 2, img: "img/nazo/nazo_1-1-11.png", answer: "cgsj" }],
-  "4,2,1,1": [{ x: 4, y: 2, img: "img/nazo/nazo_1-1-15.png", answer: "cjkf" }],
-  "2,0,1,1": [{ x: 2, y: 0, img: "img/nazo/nazo_1-1-23.png", answer: "cjlm" }],
-  "1,2,2,1": [{ x: 2, y: 4, img: "img/nazo/nazo_1-2-2A.png", answer: "dqv" }],
-  "0,1,2,1": [{ x: 0, y: 2, img: "img/nazo/nazo_1-2-4A.png", answer: "dqr" }],
-  "2,1,2,1": [{ x: 4, y: 2, img: "img/nazo/nazo_1-2-6A.png", answer: "dqt" }],
-  "1,0,2,1": [{ x: 2, y: 0, img: "img/nazo/nazo_1-2-8A.png", answer: "dqs" }],
-  "0,0,3,1": [{ x: 2, y: 0, img: "img/nazo/nazo_1-3-1B.png", answer: "cfcr" }],
+  "2,4,1,1,-1": [{ x: 2, y: 4, img: "img/nazo/nazo_1-1-3.png", answer: "cbtf" }],
+  "0,2,1,1,-1": [{ x: 0, y: 2, img: "img/nazo/nazo_1-1-11.png", answer: "cgsj" }],
+  "4,2,1,1,-1": [{ x: 4, y: 2, img: "img/nazo/nazo_1-1-15.png", answer: "cjkf" }],
+  "2,0,1,1,-1": [{ x: 2, y: 0, img: "img/nazo/nazo_1-1-23.png", answer: "cjlm" }],
+  "1,2,2,1,-1": [{ x: 2, y: 4, img: "img/nazo/nazo_1-2-2A.png", answer: "dqv" }],
+  "0,1,2,1,-1": [{ x: 0, y: 2, img: "img/nazo/nazo_1-2-4A.png", answer: "dqr" }],
+  "2,1,2,1,-1": [{ x: 4, y: 2, img: "img/nazo/nazo_1-2-6A.png", answer: "dqt" }],
+  "1,0,2,1,-1": [{ x: 2, y: 0, img: "img/nazo/nazo_1-2-8A.png", answer: "dqs" }],
+  "0,0,3,1,-1": [{ x: 2, y: 0, img: "img/nazo/nazo_1-3-1B.png", answer: "cfcr" }],
 };
 
 // 2F宝箱の開封後に表示する紙画像
 export const boxPaperRewards = {
-  "1,2,2,1": "img/nazo/nazo_1-2-2B.png",
-  "0,1,2,1": "img/nazo/nazo_1-2-4B.png",
-  "2,1,2,1": "img/nazo/nazo_1-2-6B.png",
-  "1,0,2,1": "img/nazo/nazo_1-2-8B.png",
+  "1,2,2,1,-1": "img/nazo/nazo_1-2-2B.png",
+  "0,1,2,1,-1": "img/nazo/nazo_1-2-4B.png",
+  "2,1,2,1,-1": "img/nazo/nazo_1-2-6B.png",
+  "1,0,2,1,-1": "img/nazo/nazo_1-2-8B.png",
 };
 
 // 宝石（クリアアイテム）配置データ: { [roomKey]: [{ x, y, img }] }
 export const jewelries = {
-  "0,0,1,3": [{ x: 2, y: 3, img: "img/UI/jewelry.png" }],
+  "0,0,1,3,-1": [{ x: 2, y: 3, img: "img/UI/jewelry.png" }],
 };
 
 // 進入不可マスデータ: { [roomKey]: [{ x, y, type }] }

@@ -96,7 +96,7 @@ export function resetBoxOpenOrder() {
 
 export function checkBoxOpenSequence() {
   const order = getBoxOpenOrder();
-  const correctOrder = ["1,0,2,1", "0,1,2,1", "1,2,2,1", "2,1,2,1"];
+  const correctOrder = ["1,0,2,1,-1", "0,1,2,1,-1", "1,2,2,1,-1", "2,1,2,1,-1"];
   if (order.length !== 4) return null;
   const isCorrect = order.every((key, i) => key === correctOrder[i]);
   return isCorrect;
