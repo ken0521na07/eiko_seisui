@@ -595,6 +595,27 @@ export function renderStandItems() {
   });
 }
 
+function handleNoPasswordBox(roomKey, x, y) {
+  if (isOpenedBox(roomKey, x, y)) return;
+  const boxList = boxes[roomKey] || [];
+  const box = boxList.find((b) => b.x === x && b.y === y);
+  if (!box) return;
+
+  const reward = box.rewardItem;
+  if (reward) {
+    unlockItem(reward.id, reward.count || 1);
+    setOpenedBox(roomKey, x, y);
+    renderBoxes();
+
+    let countText = "";
+    if (reward.count && reward.count >= 2) {
+      countText = `${reward.count}個`;
+    }
+    const message = `「${reward.name}」を${countText}手に入れた！`;
+    showModal(reward.img, message);
+  }
+}
+
 export function renderBoxes() {
   // 既存の宝箱imgを削除
   const oldBoxes = document.querySelectorAll(".box");
@@ -603,10 +624,15 @@ export function renderBoxes() {
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
   const roomKey = getRoomKey();
   const list = boxes[roomKey] || [];
-  list.forEach(({ x, y }) => {
+  list.forEach((box) => {
+    const { x, y, sprite } = box;
     const opened = isOpenedBox(roomKey, x, y);
     const img = document.createElement("img");
-    img.src = opened ? "img/UI/box_opened.png" : "img/UI/box.png";
+    if (sprite) {
+      img.src = sprite;
+    } else {
+      img.src = opened ? "img/UI/box_opened.png" : "img/UI/box.png";
+    }
     img.alt = opened ? "開いた宝箱" : "宝箱";
     img.className = "box";
     img.style.position = "absolute";
@@ -618,7 +644,9 @@ export function renderBoxes() {
       (gridSize - 1 - y) * tileSize
     }px`;
     img.style.width = `${tileSize}px`;
-    img.style.height = "auto";
+    img.style.height = `${tileSize}px`;
+    img.style.objectFit = "contain";
+    img.style.objectPosition = "bottom";
     img.style.zIndex = 8;
     const enableClick = () => {
       img.style.cursor = "pointer";
@@ -627,7 +655,11 @@ export function renderBoxes() {
         const dx = Math.abs(position.x - x);
         const dy = Math.abs(position.y - y);
         if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-          showBoxModal(roomKey, x, y);
+          if (box.answer === null) {
+            handleNoPasswordBox(roomKey, x, y);
+          } else {
+            showBoxModal(roomKey, x, y);
+          }
         }
       });
     };
@@ -635,7 +667,9 @@ export function renderBoxes() {
     if (!opened) {
       enableClick();
     } else {
-      img.style.opacity = "0.7";
+      if (!sprite) {
+        img.style.opacity = "0.7";
+      }
       // 2Fの紙表示付き宝箱は開封後も閲覧可能にする
       if (boxPaperRewards[roomKey]) {
         enableClick();
@@ -1224,21 +1258,27 @@ export function render() {
   const tileSize = setTileSize();
   // 部屋の背景画像切り替え
   const bgImg = mapEl.querySelector(".map__background");
-  // どの方向に隣接部屋があるか判定
-  const currentGridSize = getRoomGridSize();
-  const up = room.y < currentGridSize - 1;
-  const down = room.y > 0;
-  const left = room.x > 0;
-  const right = room.x < currentGridSize - 1;
-  let key = "";
-  if (up) key += "u";
-  if (down) key += "d";
-  if (right) key += "r";
-  if (left) key += "l";
-  if (key) {
-    bgImg.src = `img/map/map_${key}.webp`;
+  
+  // era:0, mapnum:1, floor:2, room:(0,0) のみ特別な背景
+  if (room.era === 0 && room.mapnum === 1 && room.floor === 2 && room.x === 0 && room.y === 0) {
+    bgImg.src = "img/map/map_rotate_noline.png";
   } else {
-    bgImg.src = "img/map/map_0.png";
+    // どの方向に隣接部屋があるか判定
+    const currentGridSize = getRoomGridSize();
+    const up = room.y < currentGridSize - 1;
+    const down = room.y > 0;
+    const left = room.x > 0;
+    const right = room.x < currentGridSize - 1;
+    let key = "";
+    if (up) key += "u";
+    if (down) key += "d";
+    if (right) key += "r";
+    if (left) key += "l";
+    if (key) {
+      bgImg.src = `img/map/map_${key}.webp`;
+    } else {
+      bgImg.src = "img/map/map_0.png";
+    }
   }
   // 二度目の入室時の一時的な黒背景
   bgImg.style.filter = roomBlackout ? "brightness(0)" : "";

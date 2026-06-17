@@ -6,7 +6,7 @@ import { floorGridSizes, gridSize } from "./constants.js";
 export const position = { x: 2, y: 2 };
 
 // 現在の部屋座標
-export const room = { x: 0, y: 0, floor: 1, mapnum: 1, era: -1 };
+export const room = { x: 0, y: 0, floor: 2, mapnum: 1, era: 0 };
 
 // 通過した部屋を記録 (5次元: [era][mapnum][floor][y][x])
 export const visitedRooms = {};

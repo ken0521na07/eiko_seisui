@@ -16,19 +16,23 @@ import {
 } from "./ui.js";
 
 // アイテム解放関数
-export function unlockItem(id) {
+export function unlockItem(id, count = 1) {
   const item = itemList.find((i) => i.id === id);
-  if (item && !item.unlocked) {
+  if (item) {
     item.unlocked = true;
+    item.count = (item.count || 0) + count;
     saveUnlockedItems();
   }
 }
 
 // アイテム削除関数
-export function removeItem(id) {
+export function removeItem(id, count = 1) {
   const item = itemList.find((i) => i.id === id);
   if (item && item.unlocked) {
-    item.unlocked = false;
+    item.count = Math.max(0, (item.count || 1) - count);
+    if (item.count === 0) {
+      item.unlocked = false;
+    }
     saveUnlockedItems();
   }
 }
@@ -208,6 +212,14 @@ export function showItemModal() {
     img.className = "inventory-cell__img";
     cell.appendChild(img);
 
+    // 2個以上の場合は個数を表示
+    if (item.count && item.count >= 2) {
+      const countBadge = document.createElement("span");
+      countBadge.className = "inventory-cell__count";
+      countBadge.textContent = `x${item.count}`;
+      cell.appendChild(countBadge);
+    }
+
     const clearHighlights = () => {
       Array.from(grid.children).forEach((c) => {
         c.style.border = "2px solid #888";
@@ -264,9 +276,9 @@ export function showItemModal() {
           const resultItem = itemList.find((i) => i.id === result.id);
           const resultName = resultItem?.name || result.name || result.id;
           const resultImg = resultItem?.img || "";
-          removeItem(baseId);
-          removeItem(item.id);
-          unlockItem(result.id);
+          removeItem(baseId, 1);
+          removeItem(item.id, 1);
+          unlockItem(result.id, 1);
           const combinationText = `${baseName}と${partnerName}を組み合わせて${resultName}を入手した！`;
           showModal(resultImg, combinationText);
           modal.remove();

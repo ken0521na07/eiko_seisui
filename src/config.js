@@ -102,6 +102,10 @@ export const stoneboards = {
     { x: 2, y: 0, img: "nazo_2-1-8.png", direction: "down", frame: "window" },
   ],
   "3,1,0,2,-1": [{ x: 4, y: 4, img: "nazo_2-B1-19.png", direction: "right" }],
+  "0,0,2,1,0": [
+    { x: 1, y: 4, img: "modern/guard_guide.png", direction: "up" },
+    { x: 1, y: 0, img: "modern/panel_guide.png", direction: "down" }
+  ]
 };
 
 // 特別な魔法陣（白）配置データ: { [roomKey]: [{ x, y, width, height }] }
@@ -219,6 +223,36 @@ export const boxes = {
   "2,1,2,1,-1": [{ x: 4, y: 2, img: "img/nazo/nazo_1-2-6A.png", answer: "dqt" }],
   "1,0,2,1,-1": [{ x: 2, y: 0, img: "img/nazo/nazo_1-2-8A.png", answer: "dqs" }],
   "0,0,3,1,-1": [{ x: 2, y: 0, img: "img/nazo/nazo_1-3-1B.png", answer: "cfcr" }],
+  "0,0,2,1,0": [
+    {
+      x: 0,
+      y: 4,
+      sprite: "img/UI/closet.png",
+      name: "クローゼット",
+      answer: null,
+      rewardItem: {
+        id: "panel_curve",
+        name: "曲線ピース",
+        img: "img/item/panel_curve.png",
+        desc: "90度曲がった導線が埋め込まれたピース。鉄板の窪みに配置することができる",
+        count: 2,
+      },
+    },
+    {
+      x: 4,
+      y: 3,
+      sprite: "img/UI/bed.png",
+      name: "ベッド",
+      answer: null,
+      rewardItem: {
+        id: "driver",
+        name: "ドライバー",
+        img: "img/item/driver.png",
+        desc: "ドライバー。ネジを外すことができる",
+        count: 1,
+      },
+    },
+  ],
 };
 
 // 2F宝箱の開封後に表示する紙画像
@@ -316,6 +350,22 @@ export const itemList = [
     img: "img/item/redkey.png",
     desc: "赤色の鍵だ。赤い扉を開けられそうだ。",
     unlocked: false,
+  },
+  {
+    id: "panel_curve",
+    name: "曲線ピース",
+    img: "img/item/panel_curve.png",
+    desc: "90度曲がった導線が埋め込まれたピース。鉄板の窪みに配置することができる",
+    unlocked: false,
+    count: 0,
+  },
+  {
+    id: "driver",
+    name: "ドライバー",
+    img: "img/item/driver.png",
+    desc: "ドライバー。ネジを外すことができる",
+    unlocked: false,
+    count: 0,
   },
 ];
 

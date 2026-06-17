@@ -5,18 +5,38 @@ import { standItems } from "./state.js";
 
 // --- アイテム入手状態管理 ---
 export function saveUnlockedItems() {
-  const unlockedIds = itemList.filter((i) => i.unlocked).map((i) => i.id);
-  localStorage.setItem("unlockedItems", JSON.stringify(unlockedIds));
+  const unlocked = {};
+  itemList.forEach((i) => {
+    if (i.unlocked) {
+      unlocked[i.id] = i.count || 1;
+    }
+  });
+  localStorage.setItem("unlockedItems", JSON.stringify(unlocked));
 }
 
 export function loadUnlockedItems() {
   try {
-    const unlockedIds = JSON.parse(
-      localStorage.getItem("unlockedItems") || "[]"
-    );
+    const raw = localStorage.getItem("unlockedItems") || "[]";
+    let unlocked = {};
+    if (raw.trim().startsWith("[")) {
+      // 古い配列形式の互換
+      const arr = JSON.parse(raw);
+      arr.forEach((id) => {
+        unlocked[id] = 1;
+      });
+    } else {
+      unlocked = JSON.parse(raw);
+    }
     itemList.forEach((i) => {
       const defaultState = defaultUnlockedById[i.id] || false;
-      i.unlocked = defaultState || unlockedIds.includes(i.id);
+      const savedCount = unlocked[i.id];
+      if (savedCount !== undefined) {
+        i.unlocked = true;
+        i.count = savedCount;
+      } else {
+        i.unlocked = defaultState;
+        i.count = defaultState ? 1 : 0;
+      }
     });
   } catch {}
 }

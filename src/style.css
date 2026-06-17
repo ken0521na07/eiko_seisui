@@ -183,6 +183,7 @@
 }
 
 .inventory-cell {
+  position: relative;
   width: 72px;
   height: 72px;
   display: flex;
@@ -193,6 +194,18 @@
   border-radius: 8px;
   cursor: pointer;
   transition: border 0.2s;
+}
+.inventory-cell__count {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 0.8rem;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: bold;
+  pointer-events: none;
 }
 
 .inventory-cell__img {
