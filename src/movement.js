@@ -18,16 +18,29 @@ import {
   getFloor2CenterUnlocked,
   setFloor2CenterUnlocked,
   saveGameState,
+  getRoomRotated,
 } from "./storage.js";
 import { showBottomModal, renderGame, renderLadder, render } from "./ui.js";
-import { ladders } from "./config.js";
-import { blockedTiles } from "./config.js";
+import { ladders, blockedTiles, walls } from "./config.js";
 
 export function move(dir) {
   if (controlsDisabled) return;
   const delta = directions[dir];
   if (!delta) return;
   const [dx, dy] = delta;
+
+  const roomKey = getRoomKey();
+  const rotated = getRoomRotated() && room.era === 0 && room.mapnum === 1 && room.floor === 2 && room.x === 0 && room.y === 0;
+
+  // 論理座標系（回転前の本来の座標系）での位置・移動量を算出
+  let logical_px = rotated ? 4 - position.x : position.x;
+  let logical_py = rotated ? 4 - position.y : position.y;
+  let logical_dx = rotated ? -dx : dx;
+  let logical_dy = rotated ? -dy : dy;
+
+  let logical_nextX = logical_px + logical_dx;
+  let logical_nextY = logical_py + logical_dy;
+
   let nextX = position.x + dx;
   let nextY = position.y + dy;
 
@@ -48,9 +61,9 @@ export function move(dir) {
   const roomCount = getRoomGridSize();
   const maxTileCoord = gridSize - 1;
   if (
-    nextY > maxTileCoord &&
-    position.x === 2 &&
-    dy === 1 &&
+    logical_nextY > maxTileCoord &&
+    logical_px === 2 &&
+    logical_dy === 1 &&
     room.y < roomCount - 1
   ) {
     // 2F中央(2,2,2,1)への進入規制: 下(2,1)から上へ
@@ -85,7 +98,7 @@ export function move(dir) {
     nextX = 2;
     movedRoom = true;
     handleRoomEntryOrFall();
-  } else if (nextY < 0 && position.x === 2 && dy === -1 && room.y > 0) {
+  } else if (logical_nextY < 0 && logical_px === 2 && logical_dy === -1 && room.y > 0) {
     // map2 1F (2,0,1,2)への進入規制: 上(2,1)から下へ
     if (room.era === -1 && room.floor === 1 && room.mapnum === 2 && room.x === 2 && room.y === 1) {
       showBottomModal({
@@ -101,9 +114,9 @@ export function move(dir) {
     movedRoom = true;
     handleRoomEntryOrFall();
   } else if (
-    nextX > maxTileCoord &&
-    position.y === 2 &&
-    dx === 1 &&
+    logical_nextX > maxTileCoord &&
+    logical_py === 2 &&
+    logical_dx === 1 &&
     room.x < roomCount - 1
   ) {
     // 2F中央(2,2,2,1)への進入規制: 左(1,2)から右へ
@@ -145,7 +158,7 @@ export function move(dir) {
     nextY = 2;
     movedRoom = true;
     handleRoomEntryOrFall();
-  } else if (nextX < 0 && position.y === 2 && dx === -1 && room.x > 0) {
+  } else if (logical_nextX < 0 && logical_py === 2 && logical_dx === -1 && room.x > 0) {
     disableCharacterTransition();
     // 左端中央
     room.x -= 1;
@@ -153,13 +166,13 @@ export function move(dir) {
     nextY = 2;
     movedRoom = true;
     handleRoomEntryOrFall();
-  } else if (nextY < 0 && position.x === 2 && dy === 1 && room.y > 0) {
+  } else if (logical_nextY < 0 && logical_px === 2 && logical_dy === 1 && room.y > 0) {
     // 下端中央から下へは移動不可
     return;
   } else if (
-    nextY > maxTileCoord &&
-    position.x === 2 &&
-    dy === -1 &&
+    logical_nextY > maxTileCoord &&
+    logical_px === 2 &&
+    logical_dy === -1 &&
     room.y < roomCount - 1
   ) {
     // 上端中央から上へは移動不可
@@ -168,24 +181,28 @@ export function move(dir) {
 
   // 通常の範囲内移動
   if (!movedRoom) {
-    nextX = clamp(nextX, 0, gridSize - 1);
-    nextY = clamp(nextY, 0, gridSize - 1);
+    logical_nextX = clamp(logical_nextX, 0, gridSize - 1);
+    logical_nextY = clamp(logical_nextY, 0, gridSize - 1);
     // 進入不可マスなら移動しない
-    const roomKey = getRoomKey();
-    if (isBlockedTile(roomKey, nextX, nextY)) return;
-    if (nextX === position.x && nextY === position.y) return;
+    if (isBlockedTile(roomKey, logical_nextX, logical_nextY)) return;
+    if (isBlockedByWall(roomKey, logical_px, logical_py, logical_nextX, logical_nextY)) return;
+    if (logical_nextX === logical_px && logical_nextY === logical_py) return;
+
+    nextX = rotated ? 4 - logical_nextX : logical_nextX;
+    nextY = rotated ? 4 - logical_nextY : logical_nextY;
   }
   position.x = nextX;
   position.y = nextY;
 
   // ハシゴマスに入った時の処理
-  const roomKey = getRoomKey();
+  const logicalX = rotated ? 4 - position.x : position.x;
+  const logicalY = rotated ? 4 - position.y : position.y;
   const activeLadder = ladders.find(
     (ladder) =>
       ladder.roomKey === roomKey &&
       ladder.unlocked &&
-      ladder.x === position.x &&
-      ladder.y === position.y
+      ladder.x === logicalX &&
+      ladder.y === logicalY
   );
 
   if (activeLadder) {
@@ -285,4 +302,13 @@ function handleRoomEntryOrFall() {
 export function isBlockedTile(roomKey, x, y) {
   const list = blockedTiles[roomKey] || [];
   return list.some((tile) => tile.x === x && tile.y === y);
+}
+
+export function isBlockedByWall(roomKey, x1, y1, x2, y2) {
+  const list = walls[roomKey] || [];
+  return list.some(
+    (w) =>
+      (w.p1.x === x1 && w.p1.y === y1 && w.p2.x === x2 && w.p2.y === y2) ||
+      (w.p1.x === x2 && w.p1.y === y2 && w.p2.x === x1 && w.p2.y === y1)
+  );
 }

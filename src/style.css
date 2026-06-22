@@ -170,6 +170,26 @@
   word-break: break-word;
 }
 
+.inventory-combine-btn, .inventory-use-btn {
+  font-size: 1.1rem;
+  padding: 8px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #ffd600;
+  border: 1px solid #ffc400;
+  color: #222;
+  font-weight: bold;
+  transition: background 0.2s, transform 0.1s;
+}
+.inventory-combine-btn:hover, .inventory-use-btn:hover {
+  background: #ffe033;
+  transform: translateY(-1px);
+}
+.inventory-combine-btn:active, .inventory-use-btn:active {
+  background: #e6c200;
+  transform: translateY(0);
+}
+
 .inventory-grid {
   display: grid;
   grid-template-columns: repeat(3, 72px);
@@ -1006,4 +1026,247 @@ body .minimap__cell--current {
 #bottom-modal button.close {
   background: #fff;
   border: 1px solid #888;
+}
+
+/* Zoom Modal Overlay */
+.zoom-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 5000;
+  font-family: inherit;
+}
+
+/* Zoom Container */
+.zoom-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #2a2a2a;
+  border: 4px solid #4fd1c5;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  max-width: 90vw;
+  box-sizing: border-box;
+}
+
+/* Zoom Header */
+.zoom-header {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #ffd600;
+  margin-bottom: 16px;
+}
+
+/* Zoomed Map Area (Crop of background) */
+.zoom-map-area {
+  position: relative;
+  width: 320px;
+  height: 320px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8), 0 4px 12px rgba(0,0,0,0.3);
+  background-image: url('img/map/map_rotate_noline.png');
+  background-size: 250% 250%; /* 2x2 zoom from 5x5 */
+  background-repeat: no-repeat;
+}
+
+/* Center Grid (represents the 3x3 slot tile) */
+.zoom-grid {
+  position: absolute;
+  left: 80px;
+  top: 80px;
+  width: 160px;
+  height: 160px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  background-image: url('../img/UI/panel_3*3.png');
+  background-size: cover;
+  box-sizing: border-box;
+}
+
+/* Individual cell in 3x3 grid */
+.zoom-cell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+/* Highlight for empty cells when placing is active */
+.zoom-cell.highlight {
+  background-color: rgba(255, 235, 59, 0.35);
+  cursor: pointer;
+  box-shadow: inset 0 0 8px rgba(255, 235, 59, 0.6);
+}
+.zoom-cell.highlight:hover {
+  background-color: rgba(255, 235, 59, 0.55);
+}
+
+/* Placed piece inside a cell */
+.zoom-cell img {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
+  transition: transform 0.2s;
+}
+
+/* Placed piece that can be retrieved */
+.zoom-cell.occupied {
+  cursor: pointer;
+}
+.zoom-cell.occupied::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0);
+  transition: background 0.2s;
+}
+.zoom-cell.occupied:hover::after {
+  background: rgba(255, 0, 0, 0.15); /* light red hover indication for removal */
+}
+
+/* Bottom Inventory Section */
+.zoom-inventory {
+  margin-top: 20px;
+  width: 320px;
+  background: #79724c; /* matching the user image's dark olive green color */
+  border-radius: 8px;
+  padding: 12px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: background 0.3s;
+}
+
+.zoom-inventory.active {
+  background: #3a3a3a; /* turns to dark grey when item is selected */
+}
+
+.zoom-inventory-title {
+  font-size: 0.9rem;
+  color: #fff;
+  margin-bottom: 8px;
+  align-self: flex-start;
+  font-weight: bold;
+}
+
+.zoom-inventory-items {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  width: 100%;
+}
+
+.zoom-inventory-slot {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  background: #222;
+  border: 2px solid #555;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.zoom-inventory-slot:hover {
+  border-color: #ffd600;
+}
+
+.zoom-inventory-slot.selected {
+  outline: 3px solid #ffeb3b;
+  box-shadow: 0 0 8px #ffeb3b;
+  background: rgba(255, 235, 59, 0.2);
+  border-color: transparent;
+}
+
+.zoom-inventory-slot img {
+  width: 80%;
+  height: 80%;
+  object-fit: contain;
+}
+
+.zoom-inventory-slot .badge {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  background: #ffd600;
+  color: #000;
+  font-size: 0.8rem;
+  font-weight: bold;
+  padding: 1px 5px;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Control buttons below inventory */
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 16px;
+  gap: 12px;
+}
+
+.zoom-rotate-btn {
+  background: #4fd1c5;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  transition: background 0.2s, transform 0.1s;
+}
+
+.zoom-rotate-btn:hover {
+  background: #38b2ac;
+}
+
+.zoom-rotate-btn:active {
+  transform: scale(0.95);
+}
+
+.zoom-close-btn {
+  flex-grow: 1;
+  background: #e53e3e;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  transition: background 0.2s;
+}
+
+.zoom-close-btn:hover {
+  background: #c53030;
 }/*# sourceMappingURL=style.css.map */

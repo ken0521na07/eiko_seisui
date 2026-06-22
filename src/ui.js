@@ -37,6 +37,11 @@ import {
   getFloor2CenterUnlocked,
   saveStandItems,
   saveGameState,
+  isUsedItem,
+  getPlacedPanels,
+  setPlacedPanel,
+  getRoomRotated,
+  isRedButtonUsed,
 } from "./storage.js";
 import {
   stoneboards,
@@ -227,7 +232,24 @@ export function renderStoneboards() {
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
   const roomKey = getRoomKey();
   const boards = stoneboards[roomKey] || [];
-  boards.forEach(({ x, y, img: imgName, direction, frame, frameImg }) => {
+  const rotated = getRoomRotated() && roomKey === "0,0,2,1,0";
+
+  boards.forEach(({ x, y, img: imgName, direction, frame, frameImg, unclickable, isShelfSmall, isWhiteTate, isDoor }) => {
+    let rx = x;
+    let ry = y;
+    let rdir = direction;
+    // white_tateとdoorは回転・移動しない
+    const shouldRotate = rotated && !isWhiteTate && !isDoor;
+
+    if (shouldRotate) {
+      rx = 4 - x;
+      ry = 4 - y;
+      if (direction === "up") rdir = "down";
+      else if (direction === "down") rdir = "up";
+      else if (direction === "left") rdir = "right";
+      else if (direction === "right") rdir = "left";
+    }
+
     const img = document.createElement("img");
     // フレーム画像の選択（デフォルト: stoneboard）
     if (frameImg) {
@@ -240,65 +262,83 @@ export function renderStoneboards() {
     img.alt = "石板";
     img.className = "stoneboard";
     img.style.position = "absolute";
+    const isTate = isWhiteTate || (frameImg && frameImg.includes("white_tate")) || (imgName && imgName.includes("white_tate"));
     const boardWidth = tileSize;
     const boardHeight = tileSize * (117 / 501);
-    img.style.width = `${boardWidth}px`;
-    img.style.height = `${boardHeight}px`;
-    // 向きに応じて配置
-    if (direction === "up") {
-      img.style.left = `${
-        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
-      }px`;
-      img.style.top = `${
-        SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-        (gridSize - 1 - y) * tileSize
-      }px`;
+
+    if (isTate) {
+      img.style.width = `${boardHeight}px`;
+      img.style.height = `${boardWidth}px`;
+      if (rdir === "left") {
+        img.style.left = `${SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize}px`;
+        img.style.top = `${SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) + (gridSize - 1 - ry) * tileSize}px`;
+      } else if (rdir === "right") {
+        img.style.left = `${SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + (rx + 1) * tileSize - boardHeight}px`;
+        img.style.top = `${SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) + (gridSize - 1 - ry) * tileSize}px`;
+      } else {
+        img.style.left = `${SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize}px`;
+        img.style.top = `${SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) + (gridSize - 1 - ry) * tileSize}px`;
+      }
       img.style.transform = "";
-    } else if (direction === "down") {
-      img.style.left = `${
-        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
-      }px`;
-      img.style.top = `${
-        SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-        (gridSize - 1 - y + 1) * tileSize -
-        boardHeight
-      }px`;
-      img.style.transform = "";
-    } else if (direction === "left") {
-      img.style.left = `${SAFE_MARGIN * (mapEl.clientWidth / MAP_PX)}px`;
-      img.style.top = `${
-        SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-        (gridSize - y + 0.5) * tileSize -
-        boardWidth / 2
-      }px`;
-      img.style.transform = "rotate(270deg)";
-      img.style.transformOrigin = "left top";
-    } else if (direction === "right") {
-      img.style.left = `${
-        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + (gridSize - 1) * tileSize
-      }px`;
-      img.style.top = `${
-        SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-        (gridSize - y + 0.5) * tileSize -
-        boardWidth / 2
-      }px`;
-      img.style.transform = "rotate(90deg)";
-      img.style.transformOrigin = "right top";
     } else {
-      // デフォルトはdown
-      img.style.left = `${
-        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
-      }px`;
-      img.style.top = `${
-        SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-        (gridSize - 1 - y + 1) * tileSize -
-        boardHeight
-      }px`;
-      img.style.transform = "";
+      img.style.width = `${boardWidth}px`;
+      img.style.height = `${boardHeight}px`;
+      // 向きに応じて配置
+      if (rdir === "up") {
+        img.style.left = `${
+          SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize
+        }px`;
+        img.style.top = `${
+          SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+          (gridSize - 1 - ry) * tileSize
+        }px`;
+        img.style.transform = rotated ? "rotate(180deg)" : "";
+      } else if (rdir === "down") {
+        img.style.left = `${
+          SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize
+        }px`;
+        img.style.top = `${
+          SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+          (gridSize - 1 - ry + 1) * tileSize -
+          boardHeight
+        }px`;
+        img.style.transform = rotated ? "rotate(180deg)" : "";
+      } else if (rdir === "left") {
+        img.style.left = `${SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize}px`;
+        img.style.top = `${
+          SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+          (gridSize - ry + 0.5) * tileSize -
+          boardWidth / 2
+        }px`;
+        img.style.transform = rotated ? "rotate(90deg)" : "rotate(270deg)";
+        img.style.transformOrigin = "left top";
+      } else if (rdir === "right") {
+        img.style.left = `${
+          SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize
+        }px`;
+        img.style.top = `${
+          SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+          (gridSize - ry + 0.5) * tileSize -
+          boardWidth / 2
+        }px`;
+        img.style.transform = rotated ? "rotate(270deg)" : "rotate(90deg)";
+        img.style.transformOrigin = "right top";
+      } else {
+        // デフォルトはdown
+        img.style.left = `${
+          SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize
+        }px`;
+        img.style.top = `${
+          SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+          (gridSize - 1 - ry + 1) * tileSize -
+          boardHeight
+        }px`;
+        img.style.transform = rotated ? "rotate(180deg)" : "";
+      }
     }
     img.style.zIndex = 5;
     // チェック画像（未調査なら表示）
-    if (!isCheckedStoneboard(roomKey, x, y)) {
+    if (!unclickable && !isShelfSmall && !isCheckedStoneboard(roomKey, x, y)) {
       const checkImg = document.createElement("img");
       checkImg.src = "img/UI/check.png";
       checkImg.alt = "未調査";
@@ -308,7 +348,7 @@ export function renderStoneboards() {
       // マスの上端に合わせる
       checkImg.style.top = `${
         SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-        (gridSize - 1 - y) * tileSize
+        (gridSize - 1 - ry) * tileSize
       }px`;
       checkImg.style.width = `${tileSize}px`;
       checkImg.style.height = `${tileSize}px`;
@@ -318,21 +358,30 @@ export function renderStoneboards() {
       mapEl.appendChild(checkImg);
       stoneboardElements.push(checkImg);
     }
-    img.addEventListener("click", () => {
-      // キャラクターが同じマスにいるときのみ調べられる
-      if (position.x === x && position.y === y) {
-        let message = "壁に何か書かれている";
-        if (frame === "window") {
-          message = "窓から外の様子が見える";
-        } else if (roomKey === "1,1,1,1" || roomKey === "1,1,2,1") {
-          message =
-            "石板に謎のようなものが書かれている。\n解き明かすと、次の道が開けそうだ。";
+    if (!unclickable) {
+      img.style.cursor = "pointer";
+      img.addEventListener("click", () => {
+        // キャラクターが同じマスにいるときのみ調べられる
+        if (position.x === rx && position.y === ry) {
+          if (isShelfSmall) {
+            handleSmallShelfClick();
+          } else {
+            let message = "壁に何か書かれている";
+            if (frame === "window") {
+              message = "窓から外の様子が見える";
+            } else if (roomKey === "1,1,1,1" || roomKey === "1,1,2,1") {
+              message =
+                "石板に謎のようなものが書かれている。\n解き明かすと、次の道が開けそうだ。";
+            }
+            showModal(`img/nazo/${imgName}`, message);
+            setCheckedStoneboard(roomKey, x, y);
+            renderStoneboards(); // 状態更新
+          }
         }
-        showModal(`img/nazo/${imgName}`, message);
-        setCheckedStoneboard(roomKey, x, y);
-        renderStoneboards(); // 状態更新
-      }
-    });
+      });
+    } else {
+      img.style.cursor = "default";
+    }
     mapEl.appendChild(img);
     stoneboardElements.push(img);
   });
@@ -420,8 +469,14 @@ export function renderButtons() {
   const btns = buttons_data[roomKey] || [];
   const currentState = magicCircleStates[roomKey];
   const isLocked = currentState === "red" || currentState === "blue";
+  
+  const rotated = getRoomRotated() && roomKey === "0,0,2,1,0";
+
   btns.forEach(
     ({ x, y, color, img: customImg, action, targets, targetRoomKey }) => {
+      const rx = rotated ? 4 - x : x;
+      const ry = rotated ? 4 - y : y;
+
       const buttonImg = document.createElement("img");
       // カスタム画像がある場合はそれを使用
       if (customImg) {
@@ -445,19 +500,21 @@ export function renderButtons() {
       buttonImg.className = "button";
       buttonImg.style.position = "absolute";
       buttonImg.style.left = `${
-        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
+        SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize
       }px`;
       buttonImg.style.top = `${
         SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-        (gridSize - 1 - y) * tileSize
+        (gridSize - 1 - ry) * tileSize
       }px`;
       buttonImg.style.height = `${tileSize * 0.9}px`;
       buttonImg.style.width = "auto";
+      buttonImg.style.transform = rotated ? "rotate(180deg)" : "";
+
       // 左右中央揃え
       buttonImg.onload = function () {
         buttonImg.style.left = `${
           SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) +
-          x * tileSize +
+          rx * tileSize +
           (tileSize - buttonImg.offsetWidth) / 2
         }px`;
       };
@@ -466,8 +523,8 @@ export function renderButtons() {
       if (customImg || !isLocked) {
         buttonImg.addEventListener("click", () => {
           // 隣接マスにいる場合のみ反応
-          const dx = Math.abs(position.x - x);
-          const dy = Math.abs(position.y - y);
+          const dx = Math.abs(position.x - rx);
+          const dy = Math.abs(position.y - ry);
           if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
             if (customImg && action) {
               // カスタムボタンのアクション実行
@@ -530,41 +587,53 @@ export function renderStands() {
   // 現在の部屋に台座があれば描画
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
   const roomKey = getRoomKey();
+  const rotated = getRoomRotated() && roomKey === "0,0,2,1,0";
   const list = stands[roomKey] || [];
   list.forEach(({ x, y }) => {
+    let rx = x;
+    let ry = y;
+    if (rotated) {
+      rx = 4 - x;
+      ry = 4 - y;
+    }
     const img = document.createElement("img");
     img.src = "img/UI/stand.png";
     img.alt = "台座";
     img.className = "stand";
     img.style.position = "absolute";
     img.style.left = `${
-      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
+      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize
     }px`;
     img.style.top = `${
       SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-      (gridSize - 1 - y) * tileSize
+      (gridSize - 1 - ry) * tileSize
     }px`;
     img.style.height = `${tileSize * 0.9}px`;
     img.style.width = "auto";
+    if (rotated) {
+      img.style.transform = "rotate(180deg)";
+    } else {
+      img.style.transform = "";
+    }
     // 左右中央揃え
     img.style.left = `${
       SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) +
-      x * tileSize +
+      rx * tileSize +
       (tileSize - (tileSize * 0.9 * img.naturalWidth) / img.naturalHeight) / 2
     }px`;
     // naturalWidth/Heightがまだ取得できない場合はload後に再調整
     img.onload = function () {
       img.style.left = `${
         SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) +
-        x * tileSize +
+        rx * tileSize +
         (tileSize - img.offsetWidth) / 2
       }px`;
     };
     img.style.zIndex = 7;
     img.addEventListener("click", () => {
       // 隣接マスにいる場合のみ反応
-      const dx = Math.abs(position.x - x);
-      const dy = Math.abs(position.y - y);
+      const dx = Math.abs(position.x - rx);
+      const dy = Math.abs(position.y - ry);
       if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
         showStandModal(roomKey, x, y);
       }
@@ -616,6 +685,408 @@ function handleNoPasswordBox(roomKey, x, y) {
   }
 }
 
+function handleShelfClick() {
+  const roomKey = "0,0,2,1,0";
+  const x = 0;
+  const y = 0;
+  const opened = isOpenedBox(roomKey, x, y);
+
+  if (!opened) {
+    showModal("img/nazo/modern/electro_guide.png", "棚に何か貼られている", () => {
+      showBottomModal({
+        text: "棚の中からアイテムを見つけた",
+        close: () => {
+          unlockItem("panel_straight", 2);
+          showModal("img/item/panel_straight.png", "「直線ピース」を2個手に入れた！", () => {
+            unlockItem("panel_curve", 2);
+            showModal("img/item/panel_curve.png", "「曲線ピース」を2個手に入れた！", () => {
+              setOpenedBox(roomKey, x, y);
+              renderBoxes();
+            });
+          });
+        }
+      });
+    });
+  } else {
+    showModal("img/nazo/modern/electro_guide.png", "棚に何か貼られている");
+  }
+}
+
+function isPanelConductionCorrect(x, y) {
+  const placedState = getPlacedPanels();
+  const coordKey = `${x},${y}`;
+  const slots = placedState[coordKey] || Array(9).fill(null);
+
+  const p0 = slots[0]; // Row 0, Col 0 (top-left)
+  const p1 = slots[1]; // Row 0, Col 1 (top-middle)
+  const p3 = slots[3]; // Row 1, Col 0 (middle-left)
+
+  if (!p0 || p0.type !== "panel_curve" || p0.rotation !== 180) return false;
+  if (!p1 || p1.type !== "panel_curve" || p1.rotation !== 0) return false;
+  if (!p3 || p3.type !== "panel_curve" || p3.rotation !== 0) return false;
+
+  // 他のマスはすべて空（null）であることを確認
+  for (let i = 0; i < 9; i++) {
+    if (i !== 0 && i !== 1 && i !== 3) {
+      if (slots[i] !== null) return false;
+    }
+  }
+  return true;
+}
+
+function handleSmallShelfClick() {
+  const roomKey = "0,0,2,1,0";
+  const x = 3;
+  const y = 4;
+  const opened = isOpenedBox(roomKey, x, y);
+
+  if (opened) {
+    showModal("img/nazo/modern/shelf_small_after.png", "棚の奥に何かの図が書かれている");
+    return;
+  }
+
+  // 導電クリア条件: (1,2) と (2,3) 両方のグリッドが正しい配置
+  const isConductionCorrect = isPanelConductionCorrect(1, 2) && isPanelConductionCorrect(2, 3);
+
+  if (isConductionCorrect) {
+    showBottomModal({
+      text: "棚の扉が開いている！中に「赤いスイッチ」が入っていた",
+      close: () => {
+        unlockItem("red_button", 1);
+        showModal("img/item/red_button.jpeg", "「赤いスイッチ」を手に入れた！", () => {
+          showModal("img/nazo/modern/shelf_small_after.png", "棚の奥に何かの図が書かれている", () => {
+            setOpenedBox(roomKey, x, y);
+            renderStoneboards();
+          });
+        });
+      }
+    });
+  } else {
+    showModal("img/nazo/modern/shelf_small_before.png", "棚に導線が繋がっている。電気が通れば開きそうだ。");
+  }
+}
+
+function renderPlacedPiecesOnMap(x, y, rx, ry, rotated, tileSize) {
+  // 既存の重ね描き画像を削除
+  const oldPieces = document.querySelectorAll(`.placed-piece-map-${x}-${y}`);
+  oldPieces.forEach((el) => el.remove());
+
+  const state = getPlacedPanels();
+  const coordKey = `${x},${y}`;
+  const slots = state[coordKey];
+  if (!slots) return;
+
+  slots.forEach((slot, i) => {
+    if (!slot) return;
+    const row = Math.floor(i / 3);
+    const col = i % 3;
+    const subTileSize = tileSize / 3;
+
+    const rrow = rotated ? 2 - row : row;
+    const rcol = rotated ? 2 - col : col;
+
+    const img = document.createElement("img");
+    img.src = slot.type === "panel_straight" ? "img/item/panel_straight.png" : "img/item/panel_curve.png";
+    img.className = `box placed-piece-map-${x}-${y}`;
+    img.style.position = "absolute";
+    img.style.left = `${
+      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize + rcol * subTileSize
+    }px`;
+    img.style.top = `${
+      SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
+      (gridSize - 1 - ry) * tileSize + rrow * subTileSize
+    }px`;
+    img.style.width = `${subTileSize}px`;
+    img.style.height = `${subTileSize}px`;
+    img.style.objectFit = "contain";
+    img.style.zIndex = 9;
+    const rrot = rotated ? (slot.rotation + 180) % 360 : slot.rotation;
+    img.style.transform = `rotate(${rrot}deg)`;
+    img.style.pointerEvents = "none"; // 下のパネルにクリックイベントを通す
+    mapEl.appendChild(img);
+  });
+}
+
+function openPanelPlacementModal(x, y) {
+  const straightItem = itemList.find(i => i.id === "panel_straight");
+  const curveItem = itemList.find(i => i.id === "panel_curve");
+  const straightCount = (straightItem && straightItem.unlocked) ? straightItem.count : 0;
+  const curveCount = (curveItem && curveItem.unlocked) ? curveItem.count : 0;
+  const totalPieces = straightCount + curveCount;
+
+  const placedState = getPlacedPanels();
+  const coordKey = `${x},${y}`;
+  const slots = placedState[coordKey] || Array(9).fill(null);
+  const placedCount = slots.filter(p => p !== null).length;
+
+  if (totalPieces === 0 && placedCount === 0) {
+    // ピースを持っていない状態で調べた時の挙動：上にズーム表示しつつ、下に文章を表示
+    showZoomModal(x, y, false);
+  } else {
+    // ピースを持っている（または配置済みがある）場合はインタラクティブモードを起動
+    showZoomModal(x, y, true);
+  }
+}
+
+function showZoomModal(x, y, isInteractive) {
+  // 既存モーダルがあれば削除
+  let oldOverlay = document.getElementById("zoom-modal-overlay");
+  if (oldOverlay) oldOverlay.remove();
+
+  // オーバーレイ
+  const overlay = document.createElement("div");
+  overlay.id = "zoom-modal-overlay";
+  overlay.className = "zoom-modal-overlay";
+
+  // パネル
+  const container = document.createElement("div");
+  container.className = "zoom-container";
+
+  // タイトル
+  const title = document.createElement("div");
+  title.className = "zoom-header";
+  title.textContent = isInteractive ? "ピース配置" : "くぼみ";
+  container.appendChild(title);
+
+  // ズームマップエリア
+  const zoomArea = document.createElement("div");
+  zoomArea.className = "zoom-map-area";
+
+  // background-positionの算出: 背景画像の中心（部屋+余白）を基準にして2x2マス分の範囲をクリップ
+  const MAP_PX = 340;
+  const SAFE_MARGIN = 20;
+  const PLAYABLE_PX = 300;
+  const gridSize = 5;
+
+  const S = 320; // ズームコンテナのサイズ
+  const tileSizeZoom = S / 2; // 160px
+  const playableZoom = gridSize * tileSizeZoom; // 800px
+  const bgSize = (MAP_PX / PLAYABLE_PX) * playableZoom; // 906.67px
+
+  const scaledCenterX = (SAFE_MARGIN + x * (PLAYABLE_PX / gridSize) + (PLAYABLE_PX / gridSize) / 2) * (playableZoom / PLAYABLE_PX);
+  const scaledCenterY = (SAFE_MARGIN + (gridSize - 1 - y) * (PLAYABLE_PX / gridSize) + (PLAYABLE_PX / gridSize) / 2) * (playableZoom / PLAYABLE_PX);
+
+  const leftOffset = tileSizeZoom - scaledCenterX;
+  const topOffset = tileSizeZoom - scaledCenterY;
+
+  zoomArea.style.backgroundImage = "url('img/map/map_rotate_noline.png')";
+  zoomArea.style.backgroundSize = `${bgSize}px ${bgSize}px`;
+  zoomArea.style.backgroundPosition = `${leftOffset}px ${topOffset}px`;
+
+  // 3x3 グリッドコンテナ（中央の 160px x 160px エリア）
+  const grid = document.createElement("div");
+  grid.className = "zoom-grid";
+  grid.style.left = "80px";
+  grid.style.top = "80px";
+  grid.style.width = "160px";
+  grid.style.height = "160px";
+  grid.style.backgroundImage = "url('img/UI/panel_3*3.png')";
+
+  // ピースの選択状態
+  let selectedPiece = null;
+  let selectedRotation = 0;
+
+  // 描画関数
+  function drawGrid() {
+    grid.innerHTML = "";
+    const placedState = getPlacedPanels();
+    const coordKey = `${x},${y}`;
+    const slots = placedState[coordKey] || Array(9).fill(null);
+
+    slots.forEach((slot, i) => {
+      const cell = document.createElement("div");
+      cell.className = "zoom-cell";
+      cell.dataset.index = i;
+
+      if (slot) {
+        cell.classList.add("occupied");
+        const pieceImg = document.createElement("img");
+        pieceImg.src = slot.type === "panel_straight" ? "img/item/panel_straight.png" : "img/item/panel_curve.png";
+        pieceImg.style.transform = `rotate(${slot.rotation}deg)`;
+        cell.appendChild(pieceImg);
+
+        if (isInteractive) {
+          // 配置済みのピースをクリックすると回収
+          cell.addEventListener("click", () => {
+            const placedState = getPlacedPanels();
+            const slots = placedState[coordKey] || Array(9).fill(null);
+            const slotToRemove = slots[i];
+            if (slotToRemove) {
+              unlockItem(slotToRemove.type, 1);
+              slots[i] = null;
+              placedState[coordKey] = slots;
+              localStorage.setItem("placedPanels", JSON.stringify(placedState));
+
+              drawGrid();
+              drawInventory();
+              const rotated = getRoomRotated() && getRoomKey() === "0,0,2,1,0";
+              const rx = rotated ? 4 - x : x;
+              const ry = rotated ? 4 - y : y;
+              const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
+              renderPlacedPiecesOnMap(x, y, rx, ry, rotated, tileSize);
+            }
+          });
+        }
+      } else {
+        if (isInteractive && selectedPiece) {
+          cell.classList.add("highlight");
+          cell.addEventListener("click", () => {
+            const placedState = getPlacedPanels();
+            const slots = placedState[coordKey] || Array(9).fill(null);
+            slots[i] = { type: selectedPiece, rotation: selectedRotation };
+            placedState[coordKey] = slots;
+            localStorage.setItem("placedPanels", JSON.stringify(placedState));
+
+            removeItem(selectedPiece, 1);
+
+            selectedPiece = null;
+            selectedRotation = 0;
+
+            drawGrid();
+            drawInventory();
+            const rotated = getRoomRotated() && getRoomKey() === "0,0,2,1,0";
+            const rx = rotated ? 4 - x : x;
+            const ry = rotated ? 4 - y : y;
+            const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
+            renderPlacedPiecesOnMap(x, y, rx, ry, rotated, tileSize);
+          });
+        }
+      }
+      grid.appendChild(cell);
+    });
+  }
+
+  zoomArea.appendChild(grid);
+  container.appendChild(zoomArea);
+
+  let inventoryContainer = null;
+
+  function drawInventory() {
+    if (!inventoryContainer) return;
+    inventoryContainer.innerHTML = "";
+
+    const straightItem = itemList.find(i => i.id === "panel_straight");
+    const curveItem = itemList.find(i => i.id === "panel_curve");
+    const straightCount = (straightItem && straightItem.unlocked) ? straightItem.count : 0;
+    const curveCount = (curveItem && curveItem.unlocked) ? curveItem.count : 0;
+
+    if (selectedPiece === "panel_straight" && straightCount === 0) {
+      selectedPiece = null;
+      selectedRotation = 0;
+    }
+    if (selectedPiece === "panel_curve" && curveCount === 0) {
+      selectedPiece = null;
+      selectedRotation = 0;
+    }
+
+    if (selectedPiece) {
+      inventoryContainer.classList.add("active");
+    } else {
+      inventoryContainer.classList.remove("active");
+    }
+
+    const titleLabel = document.createElement("div");
+    titleLabel.className = "zoom-inventory-title";
+    titleLabel.textContent = "所持しているピース";
+    inventoryContainer.appendChild(titleLabel);
+
+    const itemsWrapper = document.createElement("div");
+    itemsWrapper.className = "zoom-inventory-items";
+
+    const availableItems = [];
+    if (straightCount > 0) {
+      availableItems.push({ id: "panel_straight", count: straightCount, img: "img/item/panel_straight.png" });
+    }
+    if (curveCount > 0) {
+      availableItems.push({ id: "panel_curve", count: curveCount, img: "img/item/panel_curve.png" });
+    }
+
+    availableItems.forEach(item => {
+      const slot = document.createElement("div");
+      slot.className = "zoom-inventory-slot";
+      if (selectedPiece === item.id) {
+        slot.classList.add("selected");
+      }
+
+      const img = document.createElement("img");
+      img.src = item.img;
+      if (selectedPiece === item.id) {
+        img.style.transform = `rotate(${selectedRotation}deg)`;
+      }
+      slot.appendChild(img);
+
+      const badge = document.createElement("div");
+      badge.className = "badge";
+      badge.textContent = `x${item.count}`;
+      slot.appendChild(badge);
+
+      slot.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (selectedPiece === item.id) {
+          selectedPiece = null;
+          selectedRotation = 0;
+        } else {
+          selectedPiece = item.id;
+          selectedRotation = 0;
+        }
+        drawInventory();
+        drawGrid();
+      });
+
+      itemsWrapper.appendChild(slot);
+    });
+
+    inventoryContainer.appendChild(itemsWrapper);
+
+    const controls = document.createElement("div");
+    controls.className = "zoom-controls";
+
+    if (selectedPiece) {
+      const rotateBtn = document.createElement("button");
+      rotateBtn.className = "zoom-rotate-btn";
+      rotateBtn.innerHTML = "↻";
+      rotateBtn.title = "時計回りに回転";
+      rotateBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        selectedRotation = (selectedRotation + 90) % 360;
+        drawInventory();
+      });
+      controls.appendChild(rotateBtn);
+    }
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "zoom-close-btn";
+    closeBtn.textContent = "閉じる";
+    closeBtn.addEventListener("click", () => {
+      overlay.remove();
+    });
+    controls.appendChild(closeBtn);
+
+    inventoryContainer.appendChild(controls);
+  }
+
+  if (isInteractive) {
+    inventoryContainer = document.createElement("div");
+    inventoryContainer.className = "zoom-inventory";
+    container.appendChild(inventoryContainer);
+    drawInventory();
+  } else {
+    // ピースを持っていない時の挙動：上にズーム表示し、同時に下に文章（ボタン付きのボトムモーダル）を表示
+    overlay.style.zIndex = "3500";
+    showBottomModal({
+      text: "くぼみがある。何かをはめることができそうだ。",
+      close: () => {
+        overlay.remove();
+      }
+    });
+  }
+
+  drawGrid();
+
+  overlay.appendChild(container);
+  document.body.appendChild(overlay);
+}
+
 export function renderBoxes() {
   // 既存の宝箱imgを削除
   const oldBoxes = document.querySelectorAll(".box");
@@ -624,6 +1095,9 @@ export function renderBoxes() {
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
   const roomKey = getRoomKey();
   const list = boxes[roomKey] || [];
+  
+  const rotated = getRoomRotated() && roomKey === "0,0,2,1,0";
+
   list.forEach((box) => {
     const { x, y, sprite } = box;
     const opened = isOpenedBox(roomKey, x, y);
@@ -636,26 +1110,43 @@ export function renderBoxes() {
     img.alt = opened ? "開いた宝箱" : "宝箱";
     img.className = "box";
     img.style.position = "absolute";
+
+    const rx = rotated ? 4 - x : x;
+    const ry = rotated ? 4 - y : y;
+
     img.style.left = `${
-      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + x * tileSize
+      SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize
     }px`;
     img.style.top = `${
       SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-      (gridSize - 1 - y) * tileSize
+      (gridSize - 1 - ry) * tileSize
     }px`;
     img.style.width = `${tileSize}px`;
     img.style.height = `${tileSize}px`;
     img.style.objectFit = "contain";
     img.style.objectPosition = "bottom";
     img.style.zIndex = 8;
+    img.style.transform = rotated ? "rotate(180deg)" : "";
+
     const enableClick = () => {
       img.style.cursor = "pointer";
       img.addEventListener("click", () => {
-        // 隣接マスにいる場合のみ反応
-        const dx = Math.abs(position.x - x);
-        const dy = Math.abs(position.y - y);
-        if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-          if (box.answer === null) {
+        // 隣接マスにいる場合、または同じマスにいる場合（ベッド(4,3)やパネル配置マスのみ）反応
+        const dx = Math.abs(position.x - rx);
+        const dy = Math.abs(position.y - ry);
+        const isAdjacent = (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
+        const isSameTile = dx === 0 && dy === 0;
+        const isPanelTile = roomKey === "0,0,2,1,0" && (
+          (x === 1 && y === 2) ||
+          (x === 2 && y === 3) ||
+          (x === 3 && y === 2)
+        );
+        if (isAdjacent || (isSameTile && (isPanelTile || (roomKey === "0,0,2,1,0" && x === 4 && y === 3)))) {
+          if (roomKey === "0,0,2,1,0" && x === 0 && y === 0) {
+            handleShelfClick();
+          } else if (isPanelTile) {
+            openPanelPlacementModal(x, y);
+          } else if (box.answer === null) {
             handleNoPasswordBox(roomKey, x, y);
           } else {
             showBoxModal(roomKey, x, y);
@@ -670,14 +1161,32 @@ export function renderBoxes() {
       if (!sprite) {
         img.style.opacity = "0.7";
       }
-      // 2Fの紙表示付き宝箱は開封後も閲覧可能にする
-      if (boxPaperRewards[roomKey]) {
+      // 2Fの紙表示付き宝箱や(0,0)の棚オブジェクト、およびパネル配置マスは開封後も閲覧可能にする
+      const isPanelTile = roomKey === "0,0,2,1,0" && (
+        (x === 1 && y === 2) ||
+        (x === 2 && y === 3) ||
+        (x === 3 && y === 2)
+      );
+      if (
+        boxPaperRewards[roomKey] ||
+        (roomKey === "0,0,2,1,0" && x === 0 && y === 0) ||
+        isPanelTile
+      ) {
         enableClick();
       } else {
         img.style.cursor = "default";
       }
     }
     mapEl.appendChild(img);
+
+    const isPanelTile = roomKey === "0,0,2,1,0" && (
+      (x === 1 && y === 2) ||
+      (x === 2 && y === 3) ||
+      (x === 3 && y === 2)
+    );
+    if (isPanelTile) {
+      renderPlacedPiecesOnMap(x, y, rx, ry, rotated, tileSize);
+    }
   });
 }
 
@@ -1283,6 +1792,9 @@ export function render() {
   // 二度目の入室時の一時的な黒背景
   bgImg.style.filter = roomBlackout ? "brightness(0)" : "";
 
+  const rotated = getRoomRotated() && getRoomKey() === "0,0,2,1,0";
+  bgImg.style.transform = rotated ? "rotate(180deg)" : "";
+
   // キャラクターの足元がマスの下端に揃うように配置
   const x =
     SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) +
@@ -1307,6 +1819,63 @@ export function renderGame() {
   renderStandItems();
   renderLadder();
   renderJewelries();
+  renderGrayWall();
+  renderRedPerimeter();
+}
+
+export function renderRedPerimeter() {
+  const oldPerimeter = document.getElementById("red-perimeter");
+  if (oldPerimeter) oldPerimeter.remove();
+
+  const roomKey = getRoomKey();
+  if (roomKey === "0,0,2,1,0") {
+    const scaleX = mapEl.clientWidth / MAP_PX;
+    const scaleY = mapEl.clientHeight / MAP_PX;
+    const div = document.createElement("div");
+    div.id = "red-perimeter";
+    div.style.position = "absolute";
+    div.style.left = `${SAFE_MARGIN * scaleX}px`;
+    div.style.top = `${SAFE_MARGIN * scaleY}px`;
+    div.style.width = `${PLAYABLE_PX * scaleX}px`;
+    div.style.height = `${PLAYABLE_PX * scaleY}px`;
+    div.style.border = "4px solid #ff3333";
+    div.style.boxSizing = "border-box";
+    div.style.pointerEvents = "none";
+    div.style.zIndex = 3;
+    mapEl.appendChild(div);
+  }
+}
+
+export function renderGrayWall() {
+  const oldWall = document.getElementById("gray-wall");
+  if (oldWall) oldWall.remove();
+
+  const roomKey = getRoomKey();
+  const isRemoved = isUsedItem("0,0,2,1,0", 0, 1, "driver");
+  if (roomKey === "0,0,2,1,0" && !isRemoved) {
+    const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
+    const img = document.createElement("img");
+    img.id = "gray-wall";
+    img.src = "img/UI/gray.png";
+    img.alt = "鉄板";
+    img.style.position = "absolute";
+
+    const rotated = getRoomRotated();
+    const rx = rotated ? 4 : 0;
+    const ry = rotated ? 3 : 1;
+
+    img.style.left = `${SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize}px`;
+    img.style.top = `${SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) + (gridSize - 1 - ry) * tileSize}px`;
+    img.style.height = `${tileSize}px`;
+    img.style.width = "auto";
+    img.style.zIndex = 4;
+    if (rotated) {
+      img.style.transform = "rotate(180deg)";
+    } else {
+      img.style.transform = "";
+    }
+    mapEl.appendChild(img);
+  }
 }
 
 export { showItemModal } from "./utils.js";

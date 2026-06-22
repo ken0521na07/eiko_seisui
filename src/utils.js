@@ -1,18 +1,26 @@
 // ===== ユーティリティ関数 =====
 
 import { gridSize, MAP_PX, SAFE_MARGIN, PLAYABLE_PX } from "./constants.js";
-import { mapEl, position, getRoomKey, standItems } from "./state.js";
+import { mapEl, position, getRoomKey, standItems, room, visitedRooms, magicCircleStates } from "./state.js";
 import { itemList, itemCombinations, stands, ladders } from "./config.js";
 import {
   saveUnlockedItems,
   saveStandItems,
   addUnlockedLaddersRoomKey,
+  isUsedItem,
+  setUsedItem,
+  getRoomRotated,
+  setRoomRotated,
+  isRedButtonUsed,
+  setRedButtonUsed,
+  saveGameState,
 } from "./storage.js";
 import {
   showBottomModal,
   showModal,
   renderLadder,
   renderStandItems,
+  renderGame,
 } from "./ui.js";
 
 // アイテム解放関数
@@ -60,22 +68,40 @@ export function showStandItemImage(roomKey, standX, standY, item) {
   img.dataset.room = roomKey;
   img.dataset.x = standX;
   img.dataset.y = standY + 1;
+
+  const rotated = getRoomRotated() && roomKey === "0,0,2,1,0";
+  let rx = standX;
+  let ry = standY;
+  if (rotated) {
+    rx = 4 - standX;
+    ry = 4 - standY;
+  }
+
   // 配置
   const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
   img.style.position = "absolute";
   img.style.height = `${tileSize * 0.7}px`;
   img.style.width = "auto";
+
+  if (rotated) {
+    img.style.transform = "rotate(180deg)";
+  } else {
+    img.style.transform = "";
+  }
+
+  const topOffsetVal = rotated ? (tileSize * 0.1) : (-tileSize * 0.7);
+
   // 上下：マスの下端に合わせる
   img.style.top = `${
     SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-    (gridSize - 1 - (standY + 1) + 1) * tileSize -
-    tileSize * 0.7
+    (gridSize - 1 - ry) * tileSize +
+    topOffsetVal
   }px`;
   // 左右：中央揃え
   img.onload = function () {
     img.style.left = `${
       SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) +
-      standX * tileSize +
+      rx * tileSize +
       (tileSize - img.offsetWidth) / 2
     }px`;
   };
@@ -183,6 +209,16 @@ export function showItemModal() {
   combineBtn.style.display = "none";
   descWrap.appendChild(combineBtn);
 
+  // 使用するボタン（すべてのアイテムに対して表示）
+  const useBtn = document.createElement("button");
+  useBtn.className = "inventory-use-btn";
+  useBtn.textContent = "使用する";
+  useBtn.classList.add("yes");
+  useBtn.style.marginTop = "12px";
+  useBtn.style.width = "100%";
+  useBtn.style.display = "none";
+  descWrap.appendChild(useBtn);
+
   // 左: アイテムグリッド
   const grid = document.createElement("div");
   grid.className = "inventory-grid";
@@ -231,7 +267,11 @@ export function showItemModal() {
       descTitle.textContent = targetItem.name;
       descImg.src = targetItem.img;
       descImg.alt = targetItem.name;
-      descText.textContent = targetItem.desc;
+      if (targetItem.id === "red_button" && isRedButtonUsed()) {
+        descText.textContent = "棚の中から出てきた機械。ボタンを押すと赤い正方形の中が180度回転する。ただし扉の位置などは変わらないようだ。";
+      } else {
+        descText.textContent = targetItem.desc;
+      }
 
       const partnerId = getItemToCombineWith(targetItem.id);
       const hasPartner =
@@ -255,6 +295,16 @@ export function showItemModal() {
         combineBtn.style.display = "none";
         combinationMode = false;
         combinationBaseId = null;
+      }
+
+      // 使用ボタンの表示と動作設定（使用可能な時のみ表示）
+      if (checkItemUsability(targetItem.id)) {
+        useBtn.style.display = "block";
+        useBtn.onclick = () => {
+          useItem(targetItem.id);
+        };
+      } else {
+        useBtn.style.display = "none";
       }
     };
 
@@ -305,7 +355,11 @@ export function showItemModal() {
     descTitle.textContent = first.name;
     descImg.src = first.img;
     descImg.alt = first.name;
-    descText.textContent = first.desc;
+    if (first.id === "red_button" && isRedButtonUsed()) {
+      descText.textContent = "棚の中から出てきた機械。ボタンを押すと赤い正方形の中が180度回転する。ただし扉の位置などは変わらないようだ。";
+    } else {
+      descText.textContent = first.desc;
+    }
     // 初期選択時に組み合わせボタンも更新
     const partnerId = getItemToCombineWith(first.id);
     const hasPartner =
@@ -331,6 +385,16 @@ export function showItemModal() {
     } else {
       combineBtn.style.display = "none";
     }
+
+    // 初期選択時に使用ボタンも更新
+    if (checkItemUsability(first.id)) {
+      useBtn.style.display = "block";
+      useBtn.onclick = () => {
+        useItem(first.id);
+      };
+    } else {
+      useBtn.style.display = "none";
+    }
   } else {
     descTitle.textContent = "";
     descImg.src = "";
@@ -354,4 +418,94 @@ export function showItemModal() {
 
   modal.appendChild(panel);
   document.body.appendChild(modal);
+}
+
+// アイテムの使用可能性を判定する関数
+export function checkItemUsability(itemId) {
+  const roomKey = getRoomKey();
+  if (itemId === "driver") {
+    if (roomKey === "0,0,2,1,0") {
+      const rotated = getRoomRotated();
+      const targetX = rotated ? 4 : 0;
+      const targetY = rotated ? 3 : 1;
+      if (position.x === targetX && position.y === targetY) {
+        return !isUsedItem(roomKey, 0, 1, "driver");
+      }
+    }
+  }
+  if (itemId === "red_button") {
+    return roomKey === "0,0,2,1,0";
+  }
+  return false;
+}
+
+// アイテム使用処理
+export function useItem(itemId) {
+  const roomKey = getRoomKey();
+  
+  if (itemId === "driver") {
+    if (roomKey === "0,0,2,1,0") {
+      const rotated = getRoomRotated();
+      const targetX = rotated ? 4 : 0;
+      const targetY = rotated ? 3 : 1;
+      if (position.x === targetX && position.y === targetY) {
+        if (isUsedItem(roomKey, 0, 1, "driver")) {
+          showBottomModal({
+            text: "ここにはもう何もないようだ。",
+            close: () => {}
+          });
+          return;
+        }
+        
+        setUsedItem(roomKey, 0, 1, "driver");
+        renderGame();
+        
+        const modal = document.getElementById("item-modal");
+        if (modal) modal.remove();
+        
+        showBottomModal({
+          text: "壁の鉄板をドライバーで外した。",
+          close: () => {
+            unlockItem("panel_curve", 2);
+            showBottomModal({
+              text: "「曲線ピース」を2つ手に入れた！",
+              close: () => {
+                showModal("img/item/panel_curve.png", "「曲線ピース」を2つ手に入れた！");
+              }
+            });
+          }
+        });
+        return;
+      }
+    }
+  }
+
+  if (itemId === "red_button") {
+    if (roomKey === "0,0,2,1,0") {
+      const rotated = !getRoomRotated();
+      setRoomRotated(rotated);
+      setRedButtonUsed(true);
+
+      // Rotate player position
+      position.x = 4 - position.x;
+      position.y = 4 - position.y;
+
+      const modal = document.getElementById("item-modal");
+      if (modal) modal.remove();
+
+      showBottomModal({
+        text: "スイッチを押すと、部屋全体がゴゴゴと音を立てて回転した！",
+        close: () => {
+          renderGame();
+          saveGameState(position, room, visitedRooms, magicCircleStates);
+        }
+      });
+      return;
+    }
+  }
+  
+  showBottomModal({
+    text: "ここでは使えないようだ。",
+    close: () => {}
+  });
 }

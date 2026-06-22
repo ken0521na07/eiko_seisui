@@ -46,7 +46,7 @@ export function initializeInputHandlers() {
   if (!resetBtn) {
     resetBtn = document.createElement("button");
     resetBtn.id = "reset-btn";
-    resetBtn.textContent = "石板リセット";
+    resetBtn.textContent = "リセット";
     resetBtn.style.position = "fixed";
     resetBtn.style.top = "16px";
     resetBtn.style.left = "50%";

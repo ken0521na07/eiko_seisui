@@ -186,6 +186,10 @@ export function resetAllStorage() {
   localStorage.removeItem("unlockedItems");
   localStorage.removeItem("floor2CenterUnlocked");
   localStorage.removeItem("unlockedLaddersRoomKeys");
+  localStorage.removeItem("usedItems");
+  localStorage.removeItem("placedPanels");
+  localStorage.removeItem("roomRotated");
+  localStorage.removeItem("redButtonUsed");
   resetBoxOpenOrder();
 }
 
@@ -217,3 +221,72 @@ export function loadUnlockedLadders() {
     }
   });
 }
+
+// --- 使用済みアイテム管理 ---
+export function getUsedItems() {
+  try {
+    return JSON.parse(localStorage.getItem("usedItems") || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+export function setUsedItem(roomKey, x, y, itemId) {
+  const used = getUsedItems();
+  if (!used[roomKey]) used[roomKey] = [];
+  if (!used[roomKey].some((item) => item.x === x && item.y === y && item.itemId === itemId)) {
+    used[roomKey].push({ x, y, itemId });
+    localStorage.setItem("usedItems", JSON.stringify(used));
+  }
+}
+
+export function isUsedItem(roomKey, x, y, itemId) {
+  const used = getUsedItems();
+  return used[roomKey] && used[roomKey].some((item) => item.x === x && item.y === y && item.itemId === itemId);
+}
+
+// --- 3x3パネル配置盤面管理 ---
+export function getPlacedPanels() {
+  try {
+    return JSON.parse(localStorage.getItem("placedPanels") || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+export function setPlacedPanel(x, y, index, panelData) {
+  const state = getPlacedPanels();
+  const key = `${x},${y}`;
+  if (!state[key]) {
+    state[key] = Array(9).fill(null);
+  }
+  state[key][index] = panelData;
+  localStorage.setItem("placedPanels", JSON.stringify(state));
+}
+
+// --- 部屋回転状態管理 ---
+export function getRoomRotated() {
+  try {
+    return JSON.parse(localStorage.getItem("roomRotated") || "false");
+  } catch {
+    return false;
+  }
+}
+
+export function setRoomRotated(rotated) {
+  localStorage.setItem("roomRotated", JSON.stringify(rotated));
+}
+
+// --- 赤いボタン使用記録管理 ---
+export function isRedButtonUsed() {
+  try {
+    return JSON.parse(localStorage.getItem("redButtonUsed") || "false");
+  } catch {
+    return false;
+  }
+}
+
+export function setRedButtonUsed(used) {
+  localStorage.setItem("redButtonUsed", JSON.stringify(used));
+}
+

@@ -104,7 +104,9 @@ export const stoneboards = {
   "3,1,0,2,-1": [{ x: 4, y: 4, img: "nazo_2-B1-19.png", direction: "right" }],
   "0,0,2,1,0": [
     { x: 1, y: 4, img: "modern/guard_guide.png", direction: "up" },
-    { x: 1, y: 0, img: "modern/panel_guide.png", direction: "down" }
+    { x: 1, y: 0, img: "modern/panel_guide.png", direction: "down" },
+    { x: 0, y: 2, frameImg: "img/UI/white_tate.png", direction: "left", unclickable: true },
+    { x: 3, y: 4, frameImg: "img/UI/shelf_small.png", direction: "up", isShelfSmall: true }
   ]
 };
 
@@ -226,6 +228,13 @@ export const boxes = {
   "0,0,2,1,0": [
     {
       x: 0,
+      y: 0,
+      sprite: "img/UI/shelf_big.png",
+      name: "棚",
+      answer: null,
+    },
+    {
+      x: 0,
       y: 4,
       sprite: "img/UI/closet.png",
       name: "クローゼット",
@@ -248,9 +257,30 @@ export const boxes = {
         id: "driver",
         name: "ドライバー",
         img: "img/item/driver.png",
-        desc: "ドライバー。ネジを外すことができる",
+        desc: "普通のプラスドライバーだ。ネジを取ることができる。",
         count: 1,
       },
+    },
+    {
+      x: 1,
+      y: 2,
+      sprite: "img/UI/panel_3*3.png",
+      name: "パネル配置1",
+      answer: null,
+    },
+    {
+      x: 2,
+      y: 3,
+      sprite: "img/UI/panel_3*3.png",
+      name: "パネル配置2",
+      answer: null,
+    },
+    {
+      x: 3,
+      y: 2,
+      sprite: "img/UI/panel_3*3.png",
+      name: "パネル配置3",
+      answer: null,
     },
   ],
 };
@@ -276,6 +306,16 @@ export const blockedTiles = {};
 Object.keys(boxes).forEach((roomKey) => {
   if (!blockedTiles[roomKey]) blockedTiles[roomKey] = [];
   boxes[roomKey].forEach(({ x, y }) => {
+    // 時代0, マップ1, フロア2の部屋0,0のベッド(4,3)やパネル配置マスは進入可能にするため除外
+    if (
+      roomKey === "0,0,2,1,0" &&
+      ((x === 4 && y === 3) ||
+        (x === 1 && y === 2) ||
+        (x === 2 && y === 3) ||
+        (x === 3 && y === 2))
+    ) {
+      return;
+    }
     if (!blockedTiles[roomKey].some((tile) => tile.x === x && tile.y === y)) {
       blockedTiles[roomKey].push({ x, y, type: "box" });
     }
@@ -360,12 +400,27 @@ export const itemList = [
     count: 0,
   },
   {
+    id: "panel_straight",
+    name: "直線ピース",
+    img: "img/item/panel_straight.png",
+    desc: "まっすぐな導線が埋め込まれたピース。鉄板の窪みに配置することができる",
+    unlocked: false,
+    count: 0,
+  },
+  {
     id: "driver",
     name: "ドライバー",
     img: "img/item/driver.png",
-    desc: "ドライバー。ネジを外すことができる",
+    desc: "普通のプラスドライバーだ。ネジを取ることができる。",
     unlocked: false,
     count: 0,
+  },
+  {
+    id: "red_button",
+    name: "赤いスイッチ",
+    img: "img/item/red_button.jpeg",
+    desc: "棚の中から出てきた機械。棚の中に説明が書いてあるようだ。",
+    unlocked: false,
   },
 ];
 
@@ -386,3 +441,14 @@ export const itemCombinations = [
     },
   },
 ];
+
+// 壁（移動不可な境界線）データ: { [roomKey]: [{ p1: {x, y}, p2: {x, y} }] }
+export const walls = {
+  "0,0,2,1,0": [
+    { p1: { x: 3, y: 4 }, p2: { x: 4, y: 4 } },
+    { p1: { x: 3, y: 4 }, p2: { x: 3, y: 3 } },
+    { p1: { x: 3, y: 0 }, p2: { x: 2, y: 0 } },
+    { p1: { x: 3, y: 0 }, p2: { x: 3, y: 1 } },
+  ],
+};
+
