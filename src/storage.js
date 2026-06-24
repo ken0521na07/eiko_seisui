@@ -190,6 +190,8 @@ export function resetAllStorage() {
   localStorage.removeItem("placedPanels");
   localStorage.removeItem("roomRotated");
   localStorage.removeItem("redButtonUsed");
+  localStorage.removeItem("lineCornerRotated");
+  localStorage.removeItem("whiteSquareUnlocked");
   resetBoxOpenOrder();
 }
 
@@ -288,5 +290,18 @@ export function isRedButtonUsed() {
 
 export function setRedButtonUsed(used) {
   localStorage.setItem("redButtonUsed", JSON.stringify(used));
+}
+
+// --- (3,4)マスのline_corner.png回転状態管理 ---
+export function isLineCornerRotated() {
+  try {
+    return JSON.parse(localStorage.getItem("lineCornerRotated") || "false");
+  } catch {
+    return false;
+  }
+}
+
+export function setLineCornerRotated(rotated) {
+  localStorage.setItem("lineCornerRotated", JSON.stringify(rotated));
 }
 

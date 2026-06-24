@@ -2,7 +2,7 @@
 
 import { gridSize, MAP_PX, SAFE_MARGIN, PLAYABLE_PX } from "./constants.js";
 import { mapEl, position, getRoomKey, standItems, room, visitedRooms, magicCircleStates } from "./state.js";
-import { itemList, itemCombinations, stands, ladders } from "./config.js";
+import { itemList, itemCombinations, stands, ladders, isNonRotatableTile } from "./config.js";
 import {
   saveUnlockedItems,
   saveStandItems,
@@ -13,6 +13,8 @@ import {
   setRoomRotated,
   isRedButtonUsed,
   setRedButtonUsed,
+  isLineCornerRotated,
+  setLineCornerRotated,
   saveGameState,
 } from "./storage.js";
 import {
@@ -21,6 +23,8 @@ import {
   renderLadder,
   renderStandItems,
   renderGame,
+  renderStoneboards,
+  getIsDoorOpen,
 } from "./ui.js";
 
 // アイテム解放関数
@@ -426,8 +430,9 @@ export function checkItemUsability(itemId) {
   if (itemId === "driver") {
     if (roomKey === "0,0,2,1,0") {
       const rotated = getRoomRotated();
-      const targetX = rotated ? 4 : 0;
-      const targetY = rotated ? 3 : 1;
+      const shouldRotate = rotated && !isNonRotatableTile(0, 1);
+      const targetX = shouldRotate ? 4 : 0;
+      const targetY = shouldRotate ? 3 : 1;
       if (position.x === targetX && position.y === targetY) {
         return !isUsedItem(roomKey, 0, 1, "driver");
       }
@@ -446,8 +451,9 @@ export function useItem(itemId) {
   if (itemId === "driver") {
     if (roomKey === "0,0,2,1,0") {
       const rotated = getRoomRotated();
-      const targetX = rotated ? 4 : 0;
-      const targetY = rotated ? 3 : 1;
+      const shouldRotate = rotated && !isNonRotatableTile(0, 1);
+      const targetX = shouldRotate ? 4 : 0;
+      const targetY = shouldRotate ? 3 : 1;
       if (position.x === targetX && position.y === targetY) {
         if (isUsedItem(roomKey, 0, 1, "driver")) {
           showBottomModal({
@@ -482,24 +488,40 @@ export function useItem(itemId) {
 
   if (itemId === "red_button") {
     if (roomKey === "0,0,2,1,0") {
-      const rotated = !getRoomRotated();
-      setRoomRotated(rotated);
-      setRedButtonUsed(true);
-
-      // Rotate player position
-      position.x = 4 - position.x;
-      position.y = 4 - position.y;
-
       const modal = document.getElementById("item-modal");
       if (modal) modal.remove();
 
-      showBottomModal({
-        text: "スイッチを押すと、部屋全体がゴゴゴと音を立てて回転した！",
-        close: () => {
-          renderGame();
-          saveGameState(position, room, visitedRooms, magicCircleStates);
-        }
-      });
+      const isDoorCurrentlyOpen = getIsDoorOpen();
+
+      const isCurrentlyRotated = getRoomRotated();
+      if (isCurrentlyRotated && isDoorCurrentlyOpen) {
+        // 部屋回転中かつドア開時 → line_corner.pngのみ180度回転トグル
+        const lcRotated = isLineCornerRotated();
+        setLineCornerRotated(!lcRotated);
+        showBottomModal({
+          text: !lcRotated
+            ? "部屋の一部が回転した！"
+            : "元の向きに戻った。",
+          close: () => {
+            renderGame();
+            saveGameState(position, room, visitedRooms, magicCircleStates);
+          }
+        });
+      } else {
+        // 通常 → 部屋全体回転
+        const rotated = !isCurrentlyRotated;
+        setRoomRotated(rotated);
+        setRedButtonUsed(true);
+        position.x = 4 - position.x;
+        position.y = 4 - position.y;
+        showBottomModal({
+          text: "スイッチを押すと、部屋全体がゴゴゴと音を立てて回転した！",
+          close: () => {
+            renderGame();
+            saveGameState(position, room, visitedRooms, magicCircleStates);
+          }
+        });
+      }
       return;
     }
   }

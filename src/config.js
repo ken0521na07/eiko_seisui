@@ -106,7 +106,9 @@ export const stoneboards = {
     { x: 1, y: 4, img: "modern/guard_guide.png", direction: "up" },
     { x: 1, y: 0, img: "modern/panel_guide.png", direction: "down" },
     { x: 0, y: 2, frameImg: "img/UI/white_tate.png", direction: "left", unclickable: true },
-    { x: 3, y: 4, frameImg: "img/UI/shelf_small.png", direction: "up", isShelfSmall: true }
+    { x: 3, y: 4, frameImg: "img/UI/shelf_small.png", direction: "up", isShelfSmall: true },
+    { x: 2, y: 0, frameImg: "img/UI/red_door.png", direction: "down", unclickable: true, isDoor: true },
+    { x: 3, y: 4, frameImg: "img/UI/line_corner.png", direction: "up", unclickable: true, isLineCorner: true }
   ]
 };
 
@@ -282,6 +284,20 @@ export const boxes = {
       name: "パネル配置3",
       answer: null,
     },
+    {
+      x: 4,
+      y: 0,
+      sprite: "img/UI/kinko.png",
+      name: "金庫",
+      answer: null,
+    },
+    {
+      x: 4,
+      y: 4,
+      sprite: "img/UI/white_square.png",
+      name: "階段ハシゴ",
+      answer: null,
+    },
   ],
 };
 
@@ -299,20 +315,20 @@ export const jewelries = {
 };
 
 // 進入不可マスデータ: { [roomKey]: [{ x, y, type }] }
-// 宝箱・台座・ボタンから自動生成される（を参照）
 export const blockedTiles = {};
 
 // blockedTilesを初期化（boxes, stands, buttons_dataから自動生成）
 Object.keys(boxes).forEach((roomKey) => {
   if (!blockedTiles[roomKey]) blockedTiles[roomKey] = [];
   boxes[roomKey].forEach(({ x, y }) => {
-    // 時代0, マップ1, フロア2の部屋0,0のベッド(4,3)やパネル配置マスは進入可能にするため除外
+    // 時代0, マップ1, フロア2の部屋0,0のベッド(4,3), パネル配置マス, 白い四角(4,4)は進入可能にするため除外
     if (
       roomKey === "0,0,2,1,0" &&
       ((x === 4 && y === 3) ||
         (x === 1 && y === 2) ||
         (x === 2 && y === 3) ||
-        (x === 3 && y === 2))
+        (x === 3 && y === 2) ||
+        (x === 4 && y === 4))
     ) {
       return;
     }
@@ -420,7 +436,7 @@ export const itemList = [
     name: "赤いスイッチ",
     img: "img/item/red_button.jpeg",
     desc: "棚の中から出てきた機械。棚の中に説明が書いてあるようだ。",
-    unlocked: false,
+    unlocked: true,
   },
 ];
 
@@ -451,4 +467,17 @@ export const walls = {
     { p1: { x: 3, y: 0 }, p2: { x: 3, y: 1 } },
   ],
 };
+
+// 回転時も元の位置・向きを保持するオブジェクトの座標リスト（部屋 "0,0,2,1,0" 専用）
+export function isNonRotatableTile(x, y) {
+  const nonRotatableList = [
+    { x: 1, y: 4 }, // stoneboard (1,4)
+    { x: 3, y: 4 }, // small shelf & line_corner (3,4)
+    { x: 0, y: 2 }, // white vertical wire (0,2)
+    { x: 0, y: 1 }, // iron plate (0,1)
+    { x: 1, y: 0 }, // stoneboard (1,0)
+    { x: 2, y: 0 }, // door (2,0)
+  ];
+  return nonRotatableList.some(tile => tile.x === x && tile.y === y);
+}
 

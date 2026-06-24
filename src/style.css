@@ -1269,4 +1269,46 @@ body .minimap__cell--current {
 
 .zoom-close-btn:hover {
   background: #c53030;
-}/*# sourceMappingURL=style.css.map */
+}
+
+/* Guard Timer Section */
+.guard-timer-container {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 2000;
+  font-family: 'Outfit', sans-serif;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  border: 1px solid #444;
+}
+
+.guard-timer-container button {
+  background: #2d3748;
+  color: #fff;
+  border: 1px solid #4a5568;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.guard-timer-container button:hover {
+  background: #4a5568;
+}
+
+#guard-strikes-text {
+  color: #f56565;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+/*# sourceMappingURL=style.css.map */

@@ -21,7 +21,7 @@ import {
   getRoomRotated,
 } from "./storage.js";
 import { showBottomModal, renderGame, renderLadder, render } from "./ui.js";
-import { ladders, blockedTiles, walls } from "./config.js";
+import { ladders, blockedTiles, walls, isNonRotatableTile } from "./config.js";
 
 export function move(dir) {
   if (controlsDisabled) return;
@@ -181,15 +181,12 @@ export function move(dir) {
 
   // 通常の範囲内移動
   if (!movedRoom) {
-    logical_nextX = clamp(logical_nextX, 0, gridSize - 1);
-    logical_nextY = clamp(logical_nextY, 0, gridSize - 1);
+    nextX = clamp(nextX, 0, gridSize - 1);
+    nextY = clamp(nextY, 0, gridSize - 1);
     // 進入不可マスなら移動しない
-    if (isBlockedTile(roomKey, logical_nextX, logical_nextY)) return;
-    if (isBlockedByWall(roomKey, logical_px, logical_py, logical_nextX, logical_nextY)) return;
-    if (logical_nextX === logical_px && logical_nextY === logical_py) return;
-
-    nextX = rotated ? 4 - logical_nextX : logical_nextX;
-    nextY = rotated ? 4 - logical_nextY : logical_nextY;
+    if (isScreenTileBlocked(roomKey, nextX, nextY, rotated)) return;
+    if (isScreenWallBlocked(roomKey, position.x, position.y, nextX, nextY, rotated)) return;
+    if (nextX === position.x && nextY === position.y) return;
   }
   position.x = nextX;
   position.y = nextY;
@@ -311,4 +308,42 @@ export function isBlockedByWall(roomKey, x1, y1, x2, y2) {
       (w.p1.x === x1 && w.p1.y === y1 && w.p2.x === x2 && w.p2.y === y2) ||
       (w.p1.x === x2 && w.p1.y === y2 && w.p2.x === x1 && w.p2.y === y1)
   );
+}
+
+// 画面表示上でのマス侵入規制判定
+export function isScreenTileBlocked(roomKey, sx, sy, rotated) {
+  if (!rotated) {
+    return isBlockedTile(roomKey, sx, sy);
+  }
+  const list = blockedTiles[roomKey] || [];
+  return list.some((tile) => {
+    const isNonRot = isNonRotatableTile(tile.x, tile.y);
+    if (isNonRot) {
+      return tile.x === sx && tile.y === sy;
+    } else {
+      return (4 - tile.x) === sx && (4 - tile.y) === sy;
+    }
+  });
+}
+
+// 画面表示上での壁侵入規制判定
+export function isScreenWallBlocked(roomKey, sx1, sy1, sx2, sy2, rotated) {
+  const list = walls[roomKey] || [];
+  if (!rotated) {
+    return list.some(
+      (w) =>
+        (w.p1.x === sx1 && w.p1.y === sy1 && w.p2.x === sx2 && w.p2.y === sy2) ||
+        (w.p1.x === sx2 && w.p1.y === sy2 && w.p2.x === sx1 && w.p2.y === sy1)
+    );
+  }
+  return list.some((w) => {
+    const rx1 = 4 - w.p1.x;
+    const ry1 = 4 - w.p1.y;
+    const rx2 = 4 - w.p2.x;
+    const ry2 = 4 - w.p2.y;
+    return (
+      (rx1 === sx1 && ry1 === sy1 && rx2 === sx2 && ry2 === sy2) ||
+      (rx1 === sx2 && ry1 === sy2 && rx2 === sx1 && ry2 === sy1)
+    );
+  });
 }

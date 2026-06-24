@@ -41,7 +41,10 @@ import {
   getPlacedPanels,
   setPlacedPanel,
   getRoomRotated,
+  setRoomRotated,
   isRedButtonUsed,
+  isLineCornerRotated,
+  setLineCornerRotated,
 } from "./storage.js";
 import {
   stoneboards,
@@ -56,6 +59,7 @@ import {
   itemCombinations,
   blockedTiles,
   jewelries,
+  isNonRotatableTile,
 } from "./config.js";
 import {
   unlockItem,
@@ -64,6 +68,277 @@ import {
   getPlacedItemIds,
   showStandItemImage,
 } from "./utils.js";
+
+// 看守タイマー・イベントの状態管理
+let guardTimerSeconds = 60;
+let guardTimerInterval = null;
+let guardTimerRunning = true;
+let guardStrikes = 0;
+let isGuardActionActive = false;
+let isDoorOpen = false;
+let isGuardVisible = false;
+let isGuardEntered = false;
+
+export function getIsDoorOpen() { return isDoorOpen; }
+
+function updateTimerUI() {
+  const container = document.getElementById("guard-timer-container");
+  if (!container) return;
+
+  const timerText = document.getElementById("guard-timer-text");
+  if (timerText) {
+    timerText.textContent = `残り時間: ${guardTimerSeconds}秒`;
+  }
+
+  const strikesText = document.getElementById("guard-strikes-text");
+  if (strikesText) {
+    strikesText.textContent = "❌".repeat(guardStrikes);
+  }
+
+  const toggleBtn = document.getElementById("guard-timer-toggle-btn");
+  if (toggleBtn) {
+    toggleBtn.textContent = guardTimerRunning ? "Stop" : "Start";
+  }
+}
+
+function startGuardTimerInterval() {
+  stopGuardTimerInterval();
+  guardTimerInterval = setInterval(() => {
+    if (isGuardActionActive || !guardTimerRunning) return;
+
+    guardTimerSeconds--;
+    if (guardTimerSeconds <= 0) {
+      guardTimerSeconds = 0;
+      updateTimerUI();
+      triggerGuardAttack();
+    } else {
+      updateTimerUI();
+    }
+  }, 100); //TODO タイマーを10倍速にするために100にした
+}
+
+function stopGuardTimerInterval() {
+  if (guardTimerInterval) {
+    clearInterval(guardTimerInterval);
+    guardTimerInterval = null;
+  }
+}
+
+function initGuardTimer() {
+  if (document.getElementById("guard-timer-container")) return;
+
+  const container = document.createElement("div");
+  container.id = "guard-timer-container";
+  container.className = "guard-timer-container";
+
+  const timerText = document.createElement("div");
+  timerText.id = "guard-timer-text";
+  container.appendChild(timerText);
+
+  const strikesText = document.createElement("div");
+  strikesText.id = "guard-strikes-text";
+  container.appendChild(strikesText);
+
+  const toggleBtn = document.createElement("button");
+  toggleBtn.id = "guard-timer-toggle-btn";
+  toggleBtn.addEventListener("click", () => {
+    guardTimerRunning = !guardTimerRunning;
+    if (guardTimerRunning) {
+      startGuardTimerInterval();
+    } else {
+      stopGuardTimerInterval();
+    }
+    updateTimerUI();
+  });
+  container.appendChild(toggleBtn);
+
+  const resetBtn = document.createElement("button");
+  resetBtn.id = "guard-timer-reset-btn";
+  resetBtn.textContent = "Reset";
+  resetBtn.addEventListener("click", () => {
+    guardTimerSeconds = 60;
+    guardStrikes = 0;
+    updateTimerUI();
+  });
+  container.appendChild(resetBtn);
+
+  document.body.appendChild(container);
+  updateTimerUI();
+
+  if (guardTimerRunning) {
+    startGuardTimerInterval();
+  }
+}
+
+function clearGuardTimer() {
+  stopGuardTimerInterval();
+  const container = document.getElementById("guard-timer-container");
+  if (container) container.remove();
+  guardTimerSeconds = 60;
+  guardStrikes = 0;
+  isGuardActionActive = false;
+  isDoorOpen = false;
+  isGuardVisible = false;
+  isGuardEntered = false;
+}
+
+function triggerGuardAttack() {
+  isGuardActionActive = true;
+  isDoorOpen = true;
+
+  // ドアを開け、赤い線を消すために再描画
+  renderStoneboards();
+  renderRedPerimeter();
+
+  // 2.0秒後に看守がスライドイン
+  setTimeout(() => {
+    isGuardVisible = true;
+    isGuardEntered = false;
+    renderGuard();
+    
+    const guardEl = document.getElementById("guard-character");
+    if (guardEl) {
+      // リフローを起こして transition を有効にする
+      guardEl.offsetHeight;
+    }
+    
+    isGuardEntered = true;
+    renderGuard();
+
+    // 0.6秒後にプレイヤー判定
+    setTimeout(() => {
+      // ベッドのマスは (4,3)
+      const rotated = getRoomRotated() && getRoomKey() === "0,0,2,1,0";
+      const logicalX = rotated ? 4 - position.x : position.x;
+      const logicalY = rotated ? 4 - position.y : position.y;
+      const isPlayerOnBed = (logicalX === 4 && logicalY === 3);
+      if (isPlayerOnBed) {
+        showBottomModal({
+          text: "看守「ちゃんと寝ているようだな」",
+          close: () => {
+            dismissGuard();
+          }
+        });
+      } else {
+        guardStrikes++;
+        updateTimerUI();
+        showBottomModal({
+          text: "看守「何をしている！」",
+          close: () => {
+            if (guardStrikes >= 2) {
+              resetRoomSituation();
+            } else {
+              dismissGuard();
+            }
+          }
+        });
+      }
+    }, 600);
+  }, 2000);
+}
+
+function dismissGuard() {
+  // 看守スライドアウト
+  isGuardEntered = false;
+  renderGuard();
+
+  // 0.5秒後に看守削除、ドアを閉じる、タイマー再開
+  setTimeout(() => {
+    isGuardVisible = false;
+    isDoorOpen = false;
+    renderGuard();
+    renderStoneboards();
+    renderRedPerimeter();
+
+    guardTimerSeconds = 60;
+    isGuardActionActive = false;
+    updateTimerUI();
+  }, 500);
+}
+
+function resetRoomSituation() {
+  // 看守スライドアウト
+  isGuardEntered = false;
+  renderGuard();
+
+  setTimeout(() => {
+    isGuardVisible = false;
+    isDoorOpen = false;
+    renderGuard();
+
+    // 部屋状況のリセット
+    // 1. 回転を元に戻す
+    setRoomRotated(false);
+
+    // 2. 配置されたパネルを回収してクリア
+    const coordKey = "0,0,2,1,0";
+    const placedState = getPlacedPanels();
+    const slots = placedState[coordKey];
+    if (slots) {
+      slots.forEach(slot => {
+        if (slot) {
+          unlockItem(slot.type, 1);
+        }
+      });
+      placedState[coordKey] = Array(9).fill(null);
+      localStorage.setItem("placedPanels", JSON.stringify(placedState));
+    }
+
+    // 3. プレイヤー位置を (2,2) に戻す
+    position.x = 2;
+    position.y = 2;
+
+    // 4. ペナルティ数リセット
+    guardStrikes = 0;
+
+    // 再描画
+    renderGame();
+
+    showBottomModal({
+      text: "連行されてしまった…部屋の状況がリセットされた。",
+      close: () => {
+        guardTimerSeconds = 60;
+        isGuardActionActive = false;
+        updateTimerUI();
+      }
+    });
+  }, 500);
+}
+
+export function renderGuard() {
+  const oldGuard = document.getElementById("guard-character");
+  if (oldGuard) oldGuard.remove();
+
+  if (isGuardVisible) {
+    const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
+    const img = document.createElement("img");
+    img.id = "guard-character";
+    img.src = "img/UI/guard.png";
+    img.alt = "看守";
+    img.style.position = "absolute";
+    
+    // (2,0)マスの位置
+    const rx = 2;
+    const ry = 0;
+    
+    img.style.left = `${SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize}px`;
+    img.style.width = `${tileSize}px`;
+    img.style.height = `${tileSize}px`;
+    img.style.zIndex = 10;
+    img.style.transition = "top 0.5s ease-out";
+    
+    const targetTop = SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) + (gridSize - 1 - ry) * tileSize;
+    const hideTop = targetTop + tileSize; // マスの下（ドアの外）
+    
+    if (isGuardEntered) {
+      img.style.top = `${targetTop}px`;
+    } else {
+      img.style.top = `${hideTop}px`;
+    }
+    
+    mapEl.appendChild(img);
+  }
+}
 
 // 共通下部モーダル
 // options: { text, yes, no, close }
@@ -91,6 +366,13 @@ export function showBottomModal(options) {
   text.className = "text";
   text.textContent = options.text || "";
   panel.appendChild(text);
+
+  // モーダルを閉じるときはオーバーレイも削除
+  const removeModalAndOverlay = () => {
+    modal.remove();
+    overlay.remove();
+  };
+
   // ボタン
   if (options.yes || options.no) {
     // はい・いいえ型
@@ -98,14 +380,14 @@ export function showBottomModal(options) {
     yesBtn.textContent = "はい";
     yesBtn.className = "yes";
     yesBtn.addEventListener("click", () => {
-      modal.remove();
+      removeModalAndOverlay();
       if (options.yes) options.yes();
     });
     const noBtn = document.createElement("button");
     noBtn.textContent = "いいえ";
     noBtn.className = "no";
     noBtn.addEventListener("click", () => {
-      modal.remove();
+      removeModalAndOverlay();
       if (options.no) options.no();
     });
     panel.appendChild(yesBtn);
@@ -116,41 +398,13 @@ export function showBottomModal(options) {
     closeBtn.textContent = options.buttonText || "閉じる";
     closeBtn.className = "close";
     closeBtn.addEventListener("click", () => {
-      modal.remove();
+      removeModalAndOverlay();
       if (options.close) options.close();
     });
     panel.appendChild(closeBtn);
   }
   modal.appendChild(panel);
   document.body.appendChild(modal);
-
-  // モーダルを閉じるときはオーバーレイも削除
-  function removeModalAndOverlay() {
-    modal.remove();
-    overlay.remove();
-  }
-  // ボタンのイベントを上書き
-  const yesBtn = modal.querySelector("button");
-  if (yesBtn) {
-    yesBtn.onclick = () => {
-      removeModalAndOverlay();
-      if (options.yes) options.yes();
-    };
-  }
-  const noBtn = modal.querySelectorAll("button")[1];
-  if (noBtn) {
-    noBtn.onclick = () => {
-      removeModalAndOverlay();
-      if (options.no) options.no();
-    };
-  }
-  const closeBtn = modal.querySelector("button");
-  if (closeBtn && !options.yes && !options.no) {
-    closeBtn.onclick = () => {
-      removeModalAndOverlay();
-      if (options.close) options.close();
-    };
-  }
 }
 
 // モーダル表示関数
@@ -234,12 +488,12 @@ export function renderStoneboards() {
   const boards = stoneboards[roomKey] || [];
   const rotated = getRoomRotated() && roomKey === "0,0,2,1,0";
 
-  boards.forEach(({ x, y, img: imgName, direction, frame, frameImg, unclickable, isShelfSmall, isWhiteTate, isDoor }) => {
+  boards.forEach(({ x, y, img: imgName, direction, frame, frameImg, unclickable, isShelfSmall, isWhiteTate, isDoor, isLineCorner }) => {
     let rx = x;
     let ry = y;
     let rdir = direction;
-    // white_tateとdoorは回転・移動しない
-    const shouldRotate = rotated && !isWhiteTate && !isDoor;
+    // 非回転対象でなければ回転する。ただし line_corner は部屋と一緒に回転する
+    const shouldRotate = rotated && (!isNonRotatableTile(x, y) || isLineCorner);
 
     if (shouldRotate) {
       rx = 4 - x;
@@ -263,8 +517,10 @@ export function renderStoneboards() {
     img.className = "stoneboard";
     img.style.position = "absolute";
     const isTate = isWhiteTate || (frameImg && frameImg.includes("white_tate")) || (imgName && imgName.includes("white_tate"));
-    const boardWidth = tileSize;
-    const boardHeight = tileSize * (117 / 501);
+    const isSpecialSquare = isLineCorner;
+    const boardWidth = isDoor ? tileSize * 1.2 : (isSpecialSquare ? tileSize : tileSize * 0.95);
+    const boardHeight = isDoor ? boardWidth * (187 / 643) : (isSpecialSquare ? boardWidth : boardWidth * (117 / 501));
+    const leftOffset = (isDoor || isSpecialSquare) ? 0 : (tileSize - boardWidth) / 2;
 
     if (isTate) {
       img.style.width = `${boardHeight}px`;
@@ -286,23 +542,43 @@ export function renderStoneboards() {
       // 向きに応じて配置
       if (rdir === "up") {
         img.style.left = `${
-          SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize
+          SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize + leftOffset
         }px`;
         img.style.top = `${
           SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
           (gridSize - 1 - ry) * tileSize
         }px`;
-        img.style.transform = rotated ? "rotate(180deg)" : "";
+        if (isLineCorner) {
+          const lcRotated = isLineCornerRotated();
+          const baseRot = shouldRotate ? 180 : 0;
+          const extraRot = lcRotated ? 180 : 0;
+          const finalRot = (baseRot + extraRot) % 360;
+          img.style.transform = finalRot ? `rotate(${finalRot}deg)` : "";
+        } else {
+          img.style.transform = shouldRotate ? "rotate(180deg)" : "";
+        }
       } else if (rdir === "down") {
         img.style.left = `${
-          SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize
+          SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize + leftOffset
         }px`;
-        img.style.top = `${
-          SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
-          (gridSize - 1 - ry + 1) * tileSize -
-          boardHeight
-        }px`;
-        img.style.transform = rotated ? "rotate(180deg)" : "";
+        let topPos = SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) + (gridSize - 1 - ry + 1) * tileSize - boardHeight;
+        if (isDoor) {
+          topPos += 4; // 赤枠線の外側に合わせるため4px下げる
+        }
+        img.style.top = `${topPos}px`;
+        if (isDoor) {
+          img.style.transformOrigin = "left calc(100% - 4px)";
+          img.style.transform = isDoorOpen ? "rotate(-90deg)" : "";
+          img.style.transition = "transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+        } else if (isLineCorner) {
+          const lcRotated = isLineCornerRotated();
+          const baseRot = shouldRotate ? 180 : 0;
+          const extraRot = lcRotated ? 180 : 0;
+          const finalRot = (baseRot + extraRot) % 360;
+          img.style.transform = finalRot ? `rotate(${finalRot}deg)` : "";
+        } else {
+          img.style.transform = shouldRotate ? "rotate(180deg)" : "";
+        }
       } else if (rdir === "left") {
         img.style.left = `${SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize}px`;
         img.style.top = `${
@@ -310,7 +586,7 @@ export function renderStoneboards() {
           (gridSize - ry + 0.5) * tileSize -
           boardWidth / 2
         }px`;
-        img.style.transform = rotated ? "rotate(90deg)" : "rotate(270deg)";
+        img.style.transform = shouldRotate ? "rotate(90deg)" : "rotate(270deg)";
         img.style.transformOrigin = "left top";
       } else if (rdir === "right") {
         img.style.left = `${
@@ -321,22 +597,28 @@ export function renderStoneboards() {
           (gridSize - ry + 0.5) * tileSize -
           boardWidth / 2
         }px`;
-        img.style.transform = rotated ? "rotate(270deg)" : "rotate(90deg)";
+        img.style.transform = shouldRotate ? "rotate(270deg)" : "rotate(90deg)";
         img.style.transformOrigin = "right top";
       } else {
         // デフォルトはdown
         img.style.left = `${
-          SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize
+          SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize + leftOffset
         }px`;
         img.style.top = `${
           SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) +
           (gridSize - 1 - ry + 1) * tileSize -
           boardHeight
         }px`;
-        img.style.transform = rotated ? "rotate(180deg)" : "";
+        img.style.transform = shouldRotate ? "rotate(180deg)" : "";
       }
     }
-    img.style.zIndex = 5;
+    if (isLineCorner) {
+      img.style.zIndex = 4;
+    } else if (isShelfSmall) {
+      img.style.zIndex = 6;
+    } else {
+      img.style.zIndex = 5;
+    }
     // チェック画像（未調査なら表示）
     if (!unclickable && !isShelfSmall && !isCheckedStoneboard(roomKey, x, y)) {
       const checkImg = document.createElement("img");
@@ -685,6 +967,140 @@ function handleNoPasswordBox(roomKey, x, y) {
   }
 }
 
+function handleKinkoClick() {
+  const roomKey = "0,0,2,1,0";
+  const x = 4;
+  const y = 0;
+  const opened = isOpenedBox(roomKey, x, y);
+
+  if (opened) {
+    showBottomModal({ text: "金庫は既に開いている。" });
+    return;
+  }
+
+  const rotated = getRoomRotated() && getRoomKey() === "0,0,2,1,0";
+  let conditionMet = false;
+
+  if (rotated) {
+    const placedState = getPlacedPanels();
+    const slots = placedState["3,2"] || Array(9).fill(null);
+
+    // 条件:
+    // - 見た目左中央（DOMインデックス5）: 通常向きの曲線ピース（内部角度180）
+    // - 見た目真ん中上（DOMインデックス7）: 通常向きの曲線ピース（内部角度180）
+    // - 見た目左上（DOMインデックス8）: 180度回転の曲線ピース（内部角度0）
+    const slotLeftCenter = slots[5];
+    const slotMiddleTop = slots[7];
+    const slotLeftTop = slots[8];
+
+    const leftCenterOk = slotLeftCenter && slotLeftCenter.type === "panel_curve" && slotLeftCenter.rotation === 180;
+    const middleTopOk = slotMiddleTop && slotMiddleTop.type === "panel_curve" && slotMiddleTop.rotation === 180;
+    const leftTopOk = slotLeftTop && slotLeftTop.type === "panel_curve" && slotLeftTop.rotation === 0;
+
+    if (leftCenterOk && middleTopOk && leftTopOk) {
+      conditionMet = true;
+    }
+  }
+
+  if (conditionMet) {
+    setOpenedBox(roomKey, x, y);
+    renderBoxes();
+    showBottomModal({
+      text: "金庫が開いて中に直線ピースが入っていた！",
+      close: () => {
+        unlockItem("panel_straight", 1);
+        showModal("img/item/panel_straight.png", "「直線ピース」を手に入れた！");
+      }
+    });
+  } else {
+    showBottomModal({
+      text: "金庫に導線が繋がっている。電気が通れば開きそうだ。"
+    });
+  }
+}
+
+function handleWhiteSquareClick() {
+  const unlocked = localStorage.getItem("whiteSquareUnlocked") === "true";
+
+  if (unlocked) {
+    showBottomModal({
+      text: "ハシゴがある。下におりますか？"
+    });
+    return;
+  }
+
+  // 開放条件チェック
+  const rotated = getRoomRotated() && getRoomKey() === "0,0,2,1,0";
+  const lcRotated = isLineCornerRotated();
+
+  console.log("--- (4,4) ハシゴ開放条件判定開始 ---");
+  console.log(`1. 部屋180度回転中: ${rotated}`);
+  console.log(`2. (3,4)マス(line_corner)180度回転中: ${lcRotated}`);
+
+  const condCorrect = checkWhiteSquareCondition();
+  console.log(`ハシゴ開放最終判定結果: ${rotated && lcRotated && condCorrect}`);
+  console.log("-----------------------------------------");
+
+  if (rotated && lcRotated && condCorrect) {
+    localStorage.setItem("whiteSquareUnlocked", "true");
+    showBottomModal({
+      text: "電気が通り、階段が開いた！",
+      close: () => {
+        showBottomModal({ text: "ハシゴがある。下におりますか？" });
+      }
+    });
+    return;
+  }
+
+  showModal("img/nazo/modern/ladder_before.png", "下へとつながる階段だ。電気が通れば開きそうだ");
+}
+
+// (4,4)開放のパネル配置条件チェック
+function checkWhiteSquareCondition() {
+  const placedState = getPlacedPanels();
+
+  // ---- 回転前(3,2)のグリッド: 左中央(3)・中央(4)・右中央(5) に90degまたは270degの直線ピース ----
+  // 部屋回転時に配置する場合、内部値 = (見た目angle + 180) % 360
+  // 90deg直線 → 内部270、270deg直線 → 内部90
+  const slots32 = placedState["3,2"] || Array(9).fill(null);
+  const s32_3 = slots32[3]; // 左中央
+  const s32_4 = slots32[4]; // 中央
+  const s32_5 = slots32[5]; // 右中央
+
+  const isStraightRotated = (slot) =>
+    slot && slot.type === "panel_straight" && (slot.rotation === 90 || slot.rotation === 270);
+
+  const cond32_3 = isStraightRotated(s32_3);
+  const cond32_4 = isStraightRotated(s32_4);
+  const cond32_5 = isStraightRotated(s32_5);
+
+  console.log("3. 回転前(3,2)のグリッド判定:");
+  console.log(`  - 左中央(3) [90|270]: ${cond32_3} (状態: ${s32_3 ? `${s32_3.type}, rot:${s32_3.rotation}` : "空"})`);
+  console.log(`  - 中央(4) [90|270]: ${cond32_4} (状態: ${s32_4 ? `${s32_4.type}, rot:${s32_4.rotation}` : "空"})`);
+  console.log(`  - 右中央(5) [90|270]: ${cond32_5} (状態: ${s32_5 ? `${s32_5.type}, rot:${s32_5.rotation}` : "空"})`);
+
+  // ---- 回転前(2,3)のグリッド: 左中央(3)=0deg曲線, 中央上(1)=0deg曲線, 左上(0)=180deg曲線 ----
+  // 部屋回転時配置の場合、内部値 = (見た目angle + 180) % 360
+  // 0deg曲線 → 内部180、180deg曲線 → 内部0
+  // ※ 部屋が180度回転した見た目を基準にするため、
+  // プレイヤーから見た位置 (左上, 中央上, 左中) は内部スロット (8, 7, 5) に対応します。
+  const slots23 = placedState["2,3"] || Array(9).fill(null);
+  const s23_8 = slots23[8]; // 見た目: 左上 (内部 8)
+  const s23_7 = slots23[7]; // 見た目: 中央上 (内部 7)
+  const s23_5 = slots23[5]; // 見た目: 左中央 (内部 5)
+
+  const cond23_8 = s23_8 && s23_8.type === "panel_curve" && s23_8.rotation === 0;
+  const cond23_7 = s23_7 && s23_7.type === "panel_curve" && s23_7.rotation === 180;
+  const cond23_5 = s23_5 && s23_5.type === "panel_curve" && s23_5.rotation === 180;
+
+  console.log("4. 回転前(2,3)のグリッド判定:");
+  console.log(`  - 左上(8) [見た目:左上180deg=内部0]: ${cond23_8} (状態: ${s23_8 ? `${s23_8.type}, rot:${s23_8.rotation}` : "空"})`);
+  console.log(`  - 中央上(7) [見た目:中央上0deg=内部180]: ${cond23_7} (状態: ${s23_7 ? `${s23_7.type}, rot:${s23_7.rotation}` : "空"})`);
+  console.log(`  - 左中央(5) [見た目:左中央0deg=内部180]: ${cond23_5} (状態: ${s23_5 ? `${s23_5.type}, rot:${s23_5.rotation}` : "空"})`);
+
+  return cond32_3 && cond32_4 && cond32_5 && cond23_8 && cond23_7 && cond23_5;
+}
+
 function handleShelfClick() {
   const roomKey = "0,0,2,1,0";
   const x = 0;
@@ -873,6 +1289,11 @@ function showZoomModal(x, y, isInteractive) {
   zoomArea.style.backgroundSize = `${bgSize}px ${bgSize}px`;
   zoomArea.style.backgroundPosition = `${leftOffset}px ${topOffset}px`;
 
+  const rotated = getRoomRotated() && getRoomKey() === "0,0,2,1,0";
+  if (rotated) {
+    zoomArea.style.transform = "rotate(180deg)";
+  }
+
   // 3x3 グリッドコンテナ（中央の 160px x 160px エリア）
   const grid = document.createElement("div");
   grid.className = "zoom-grid";
@@ -933,7 +1354,9 @@ function showZoomModal(x, y, isInteractive) {
           cell.addEventListener("click", () => {
             const placedState = getPlacedPanels();
             const slots = placedState[coordKey] || Array(9).fill(null);
-            slots[i] = { type: selectedPiece, rotation: selectedRotation };
+            const rotated = getRoomRotated() && getRoomKey() === "0,0,2,1,0";
+            const finalRotation = rotated ? (selectedRotation + 180) % 360 : selectedRotation;
+            slots[i] = { type: selectedPiece, rotation: finalRotation };
             placedState[coordKey] = slots;
             localStorage.setItem("placedPanels", JSON.stringify(placedState));
 
@@ -944,7 +1367,6 @@ function showZoomModal(x, y, isInteractive) {
 
             drawGrid();
             drawInventory();
-            const rotated = getRoomRotated() && getRoomKey() === "0,0,2,1,0";
             const rx = rotated ? 4 - x : x;
             const ry = rotated ? 4 - y : y;
             const tileSize = (mapEl.clientHeight * PLAYABLE_PX) / MAP_PX / gridSize;
@@ -1111,8 +1533,9 @@ export function renderBoxes() {
     img.className = "box";
     img.style.position = "absolute";
 
-    const rx = rotated ? 4 - x : x;
-    const ry = rotated ? 4 - y : y;
+    const shouldRotate = rotated && !isNonRotatableTile(x, y);
+    const rx = shouldRotate ? 4 - x : x;
+    const ry = shouldRotate ? 4 - y : y;
 
     img.style.left = `${
       SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize
@@ -1126,7 +1549,7 @@ export function renderBoxes() {
     img.style.objectFit = "contain";
     img.style.objectPosition = "bottom";
     img.style.zIndex = 8;
-    img.style.transform = rotated ? "rotate(180deg)" : "";
+    img.style.transform = shouldRotate ? "rotate(180deg)" : "";
 
     const enableClick = () => {
       img.style.cursor = "pointer";
@@ -1141,8 +1564,12 @@ export function renderBoxes() {
           (x === 2 && y === 3) ||
           (x === 3 && y === 2)
         );
-        if (isAdjacent || (isSameTile && (isPanelTile || (roomKey === "0,0,2,1,0" && x === 4 && y === 3)))) {
-          if (roomKey === "0,0,2,1,0" && x === 0 && y === 0) {
+        if (isAdjacent || (isSameTile && (isPanelTile || (roomKey === "0,0,2,1,0" && (x === 4 && y === 3 || x === 4 && y === 4))))) {
+          if (roomKey === "0,0,2,1,0" && x === 4 && y === 0) {
+            handleKinkoClick();
+          } else if (roomKey === "0,0,2,1,0" && x === 4 && y === 4) {
+            handleWhiteSquareClick();
+          } else if (roomKey === "0,0,2,1,0" && x === 0 && y === 0) {
             handleShelfClick();
           } else if (isPanelTile) {
             openPanelPlacementModal(x, y);
@@ -1170,6 +1597,8 @@ export function renderBoxes() {
       if (
         boxPaperRewards[roomKey] ||
         (roomKey === "0,0,2,1,0" && x === 0 && y === 0) ||
+        (roomKey === "0,0,2,1,0" && x === 4 && y === 0) ||
+        (roomKey === "0,0,2,1,0" && x === 4 && y === 4) ||
         isPanelTile
       ) {
         enableClick();
@@ -1185,7 +1614,7 @@ export function renderBoxes() {
       (x === 3 && y === 2)
     );
     if (isPanelTile) {
-      renderPlacedPiecesOnMap(x, y, rx, ry, rotated, tileSize);
+      renderPlacedPiecesOnMap(x, y, rx, ry, shouldRotate, tileSize);
     }
   });
 }
@@ -1809,6 +2238,13 @@ export function render() {
 }
 
 export function renderGame() {
+  const roomKey = getRoomKey();
+  if (roomKey === "0,0,2,1,0") {
+    initGuardTimer();
+  } else {
+    clearGuardTimer();
+  }
+
   render();
   renderStoneboards();
   renderStands();
@@ -1821,6 +2257,7 @@ export function renderGame() {
   renderJewelries();
   renderGrayWall();
   renderRedPerimeter();
+  renderGuard();
 }
 
 export function renderRedPerimeter() {
@@ -1831,18 +2268,79 @@ export function renderRedPerimeter() {
   if (roomKey === "0,0,2,1,0") {
     const scaleX = mapEl.clientWidth / MAP_PX;
     const scaleY = mapEl.clientHeight / MAP_PX;
-    const div = document.createElement("div");
-    div.id = "red-perimeter";
-    div.style.position = "absolute";
-    div.style.left = `${SAFE_MARGIN * scaleX}px`;
-    div.style.top = `${SAFE_MARGIN * scaleY}px`;
-    div.style.width = `${PLAYABLE_PX * scaleX}px`;
-    div.style.height = `${PLAYABLE_PX * scaleY}px`;
-    div.style.border = "4px solid #ff3333";
-    div.style.boxSizing = "border-box";
-    div.style.pointerEvents = "none";
-    div.style.zIndex = 3;
-    mapEl.appendChild(div);
+    const container = document.createElement("div");
+    container.id = "red-perimeter";
+    container.style.position = "absolute";
+    container.style.left = `${SAFE_MARGIN * scaleX}px`;
+    container.style.top = `${SAFE_MARGIN * scaleY}px`;
+    container.style.width = `${PLAYABLE_PX * scaleX}px`;
+    container.style.height = `${PLAYABLE_PX * scaleY}px`;
+    container.style.pointerEvents = "none";
+    container.style.zIndex = 8;
+
+    // 上辺
+    const topBorder = document.createElement("div");
+    topBorder.style.position = "absolute";
+    topBorder.style.left = "0";
+    topBorder.style.top = "0";
+    topBorder.style.width = "100%";
+    topBorder.style.height = "4px";
+    topBorder.style.backgroundColor = "#ff3333";
+    container.appendChild(topBorder);
+
+    // 左辺
+    const leftBorder = document.createElement("div");
+    leftBorder.style.position = "absolute";
+    leftBorder.style.left = "0";
+    leftBorder.style.top = "0";
+    leftBorder.style.width = "4px";
+    leftBorder.style.height = "100%";
+    leftBorder.style.backgroundColor = "#ff3333";
+    container.appendChild(leftBorder);
+
+    // 右辺
+    const rightBorder = document.createElement("div");
+    rightBorder.style.position = "absolute";
+    rightBorder.style.right = "0";
+    rightBorder.style.top = "0";
+    rightBorder.style.width = "4px";
+    rightBorder.style.height = "100%";
+    rightBorder.style.backgroundColor = "#ff3333";
+    container.appendChild(rightBorder);
+
+    // 下辺（左側 40% = 2マス分）
+    const bottomBorderLeft = document.createElement("div");
+    bottomBorderLeft.style.position = "absolute";
+    bottomBorderLeft.style.left = "0";
+    bottomBorderLeft.style.bottom = "0";
+    bottomBorderLeft.style.width = "40%";
+    bottomBorderLeft.style.height = "4px";
+    bottomBorderLeft.style.backgroundColor = "#ff3333";
+    container.appendChild(bottomBorderLeft);
+
+    // 下辺（中央 20% = 1マス分 - ドアが開いている時は非表示）
+    if (!isDoorOpen) {
+      const bottomBorderCenter = document.createElement("div");
+      bottomBorderCenter.style.position = "absolute";
+      bottomBorderCenter.style.left = "40%";
+      bottomBorderCenter.style.bottom = "0";
+      bottomBorderCenter.style.width = "20%";
+      bottomBorderCenter.style.height = "4px";
+      bottomBorderCenter.style.backgroundColor = "#ff3333";
+      container.appendChild(bottomBorderCenter);
+    }
+
+    // 下辺（右側 40% = 2マス分）
+    const bottomBorderRight = document.createElement("div");
+    bottomBorderRight.style.position = "absolute";
+    bottomBorderRight.style.right = "0";
+    bottomBorderRight.style.bottom = "0";
+    bottomBorderRight.style.width = "40%";
+    bottomBorderRight.style.height = "4px";
+    bottomBorderRight.style.backgroundColor = "#ff3333";
+    container.appendChild(bottomBorderRight);
+
+    mapEl.appendChild(container);
   }
 }
 
@@ -1861,15 +2359,16 @@ export function renderGrayWall() {
     img.style.position = "absolute";
 
     const rotated = getRoomRotated();
-    const rx = rotated ? 4 : 0;
-    const ry = rotated ? 3 : 1;
+    const shouldRotate = rotated && !isNonRotatableTile(0, 1);
+    const rx = shouldRotate ? 4 : 0;
+    const ry = shouldRotate ? 3 : 1;
 
     img.style.left = `${SAFE_MARGIN * (mapEl.clientWidth / MAP_PX) + rx * tileSize}px`;
     img.style.top = `${SAFE_MARGIN * (mapEl.clientHeight / MAP_PX) + (gridSize - 1 - ry) * tileSize}px`;
     img.style.height = `${tileSize}px`;
     img.style.width = "auto";
     img.style.zIndex = 4;
-    if (rotated) {
+    if (shouldRotate) {
       img.style.transform = "rotate(180deg)";
     } else {
       img.style.transform = "";
