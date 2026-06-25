@@ -436,7 +436,7 @@ export const itemList = [
     name: "赤いスイッチ",
     img: "img/item/red_button.jpeg",
     desc: "棚の中から出てきた機械。棚の中に説明が書いてあるようだ。",
-    unlocked: true,
+    unlocked: false,
   },
 ];
 

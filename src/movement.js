@@ -20,7 +20,15 @@ import {
   saveGameState,
   getRoomRotated,
 } from "./storage.js";
-import { showBottomModal, renderGame, renderLadder, render } from "./ui.js";
+import {
+  showBottomModal,
+  renderGame,
+  renderLadder,
+  render,
+  isKinkoConditionMet,
+  isSmallShelfConditionMet,
+  isLadderConditionMet,
+} from "./ui.js";
 import { ladders, blockedTiles, walls, isNonRotatableTile } from "./config.js";
 
 export function move(dir) {
@@ -191,9 +199,43 @@ export function move(dir) {
   position.x = nextX;
   position.y = nextY;
 
-  // ハシゴマスに入った時の処理
+  // 痺れ（感電）判定
   const logicalX = rotated ? 4 - position.x : position.x;
   const logicalY = rotated ? 4 - position.y : position.y;
+  const isTargetRoom = room.era === 0 && room.mapnum === 1 && room.floor === 2 && room.x === 0 && room.y === 0;
+
+  if (isTargetRoom) {
+    let shouldShock = false;
+    if (logicalX === 3 && logicalY === 2) {
+      shouldShock = isKinkoConditionMet() || isLadderConditionMet();
+    } else if (logicalX === 2 && logicalY === 3) {
+      shouldShock = isSmallShelfConditionMet() || isLadderConditionMet();
+    } else if (logicalX === 3 && logicalY === 4) {
+      shouldShock = isSmallShelfConditionMet();
+    }
+
+    if (shouldShock) {
+      setControlsDisabled(true);
+      // 先に描画してキャラクターを対象マスに置く
+      render();
+      const charImg = document.querySelector("#character img");
+      if (charImg) {
+        charImg.src = "img/UI/character_biribiri.png";
+        charImg.classList.add("biribiri");
+      }
+      setTimeout(() => {
+        if (charImg) {
+          charImg.src = "img/UI/character.png";
+          charImg.classList.remove("biribiri");
+        }
+        setControlsDisabled(false);
+        saveGameState(position, room, visitedRooms, magicCircleStates);
+      }, 2000);
+      return; // 痺れている間は他の処理（ハシゴモーダルなど）をスキップ
+    }
+  }
+
+  // ハシゴマスに入った時の処理
   const activeLadder = ladders.find(
     (ladder) =>
       ladder.roomKey === roomKey &&

@@ -114,7 +114,7 @@ function startGuardTimerInterval() {
     } else {
       updateTimerUI();
     }
-  }, 100); //TODO タイマーを10倍速にするために100にした
+  }, 1000); //TODO タイマーを10倍速にするために100にした
 }
 
 function stopGuardTimerInterval() {
@@ -978,29 +978,7 @@ function handleKinkoClick() {
     return;
   }
 
-  const rotated = getRoomRotated() && getRoomKey() === "0,0,2,1,0";
-  let conditionMet = false;
-
-  if (rotated) {
-    const placedState = getPlacedPanels();
-    const slots = placedState["3,2"] || Array(9).fill(null);
-
-    // 条件:
-    // - 見た目左中央（DOMインデックス5）: 通常向きの曲線ピース（内部角度180）
-    // - 見た目真ん中上（DOMインデックス7）: 通常向きの曲線ピース（内部角度180）
-    // - 見た目左上（DOMインデックス8）: 180度回転の曲線ピース（内部角度0）
-    const slotLeftCenter = slots[5];
-    const slotMiddleTop = slots[7];
-    const slotLeftTop = slots[8];
-
-    const leftCenterOk = slotLeftCenter && slotLeftCenter.type === "panel_curve" && slotLeftCenter.rotation === 180;
-    const middleTopOk = slotMiddleTop && slotMiddleTop.type === "panel_curve" && slotMiddleTop.rotation === 180;
-    const leftTopOk = slotLeftTop && slotLeftTop.type === "panel_curve" && slotLeftTop.rotation === 0;
-
-    if (leftCenterOk && middleTopOk && leftTopOk) {
-      conditionMet = true;
-    }
-  }
+  const conditionMet = isKinkoConditionMet();
 
   if (conditionMet) {
     setOpenedBox(roomKey, x, y);
@@ -1043,6 +1021,7 @@ function handleWhiteSquareClick() {
 
   if (rotated && lcRotated && condCorrect) {
     localStorage.setItem("whiteSquareUnlocked", "true");
+    renderBoxes(); // 即座にハシゴの画像 (ladder_square) に切り替える
     showBottomModal({
       text: "電気が通り、階段が開いた！",
       close: () => {
@@ -1100,6 +1079,42 @@ function checkWhiteSquareCondition() {
 
   return cond32_3 && cond32_4 && cond32_5 && cond23_8 && cond23_7 && cond23_5;
 }
+
+// --- (4,4) 痺れ判定用の条件チェック関数 ---
+export function isKinkoConditionMet() {
+  const roomKey = getRoomKey();
+  if (roomKey !== "0,0,2,1,0") return false;
+  const rotated = getRoomRotated();
+  if (!rotated) return false;
+
+  const placedState = getPlacedPanels();
+  const slots = placedState["3,2"] || Array(9).fill(null);
+
+  const slotLeftCenter = slots[5];
+  const slotMiddleTop = slots[7];
+  const slotLeftTop = slots[8];
+
+  const leftCenterOk = slotLeftCenter && slotLeftCenter.type === "panel_curve" && slotLeftCenter.rotation === 180;
+  const middleTopOk = slotMiddleTop && slotMiddleTop.type === "panel_curve" && slotMiddleTop.rotation === 180;
+  const leftTopOk = slotLeftTop && slotLeftTop.type === "panel_curve" && slotLeftTop.rotation === 0;
+
+  return !!(leftCenterOk && middleTopOk && leftTopOk);
+}
+
+export function isSmallShelfConditionMet() {
+  const roomKey = getRoomKey();
+  if (roomKey !== "0,0,2,1,0") return false;
+  return isPanelConductionCorrect(1, 2) && isPanelConductionCorrect(2, 3);
+}
+
+export function isLadderConditionMet() {
+  const roomKey = getRoomKey();
+  if (roomKey !== "0,0,2,1,0") return false;
+  const rotated = getRoomRotated();
+  const lcRotated = isLineCornerRotated();
+  return rotated && lcRotated && checkWhiteSquareCondition();
+}
+
 
 function handleShelfClick() {
   const roomKey = "0,0,2,1,0";
@@ -1162,7 +1177,7 @@ function handleSmallShelfClick() {
   }
 
   // 導電クリア条件: (1,2) と (2,3) 両方のグリッドが正しい配置
-  const isConductionCorrect = isPanelConductionCorrect(1, 2) && isPanelConductionCorrect(2, 3);
+  const isConductionCorrect = isSmallShelfConditionMet();
 
   if (isConductionCorrect) {
     showBottomModal({
@@ -1524,7 +1539,10 @@ export function renderBoxes() {
     const { x, y, sprite } = box;
     const opened = isOpenedBox(roomKey, x, y);
     const img = document.createElement("img");
-    if (sprite) {
+    if (roomKey === "0,0,2,1,0" && x === 4 && y === 4) {
+      const unlocked = localStorage.getItem("whiteSquareUnlocked") === "true";
+      img.src = unlocked ? "img/UI/ladder_square.png" : "img/UI/white_square.png";
+    } else if (sprite) {
       img.src = sprite;
     } else {
       img.src = opened ? "img/UI/box_opened.png" : "img/UI/box.png";
