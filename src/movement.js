@@ -210,7 +210,7 @@ export function move(dir) {
       shouldShock = isKinkoConditionMet() || isLadderConditionMet();
     } else if (logicalX === 2 && logicalY === 3) {
       shouldShock = isSmallShelfConditionMet() || isLadderConditionMet();
-    } else if (logicalX === 3 && logicalY === 4) {
+    } else if (logicalX === 1 && logicalY === 2) {
       shouldShock = isSmallShelfConditionMet();
     }
 

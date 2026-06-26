@@ -488,7 +488,7 @@ export function renderStoneboards() {
   const boards = stoneboards[roomKey] || [];
   const rotated = getRoomRotated() && roomKey === "0,0,2,1,0";
 
-  boards.forEach(({ x, y, img: imgName, direction, frame, frameImg, unclickable, isShelfSmall, isWhiteTate, isDoor, isLineCorner }) => {
+  boards.forEach(({ x, y, img: imgName, direction, frame, frameImg, unclickable, isShelfSmall, isWhiteTate, isDoor, isLineCorner, isBattery }) => {
     let rx = x;
     let ry = y;
     let rdir = direction;
@@ -647,6 +647,8 @@ export function renderStoneboards() {
         if (position.x === rx && position.y === ry) {
           if (isShelfSmall) {
             handleSmallShelfClick();
+          } else if (isBattery) {
+            handleBatteryClick();
           } else {
             let message = "壁に何か書かれている";
             if (frame === "window") {
@@ -1104,6 +1106,10 @@ export function isKinkoConditionMet() {
 export function isSmallShelfConditionMet() {
   const roomKey = getRoomKey();
   if (roomKey !== "0,0,2,1,0") return false;
+  const rotated = getRoomRotated();
+  const lcRotated = isLineCornerRotated();
+  // 部屋全体が回転しておらず、(3,4)マスのline_cornerも回転していないこと
+  if (rotated || lcRotated) return false;
   return isPanelConductionCorrect(1, 2) && isPanelConductionCorrect(2, 3);
 }
 
@@ -1141,6 +1147,15 @@ function handleShelfClick() {
   } else {
     showModal("img/nazo/modern/electro_guide.png", "棚に何か貼られている");
   }
+}
+
+function handleBatteryClick() {
+  const roomKey = getRoomKey();
+  const x = 0;
+  const y = 2;
+  showModal("img/UI/white_tate.png", "バッテリーだ。コードが伸びている");
+  setCheckedStoneboard(roomKey, x, y);
+  renderStoneboards();
 }
 
 function isPanelConductionCorrect(x, y) {

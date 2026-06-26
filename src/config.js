@@ -105,7 +105,7 @@ export const stoneboards = {
   "0,0,2,1,0": [
     { x: 1, y: 4, img: "modern/guard_guide.png", direction: "up" },
     { x: 1, y: 0, img: "modern/panel_guide.png", direction: "down" },
-    { x: 0, y: 2, frameImg: "img/UI/white_tate.png", direction: "left", unclickable: true },
+    { x: 0, y: 2, frameImg: "img/UI/white_tate.png", direction: "left", isBattery: true },
     { x: 3, y: 4, frameImg: "img/UI/shelf_small.png", direction: "up", isShelfSmall: true },
     { x: 2, y: 0, frameImg: "img/UI/red_door.png", direction: "down", unclickable: true, isDoor: true },
     { x: 3, y: 4, frameImg: "img/UI/line_corner.png", direction: "up", unclickable: true, isLineCorner: true }
